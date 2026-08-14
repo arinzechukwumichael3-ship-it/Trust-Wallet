@@ -147,6 +147,12 @@
       font-size: 0.72rem; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
     }
+    .badge.unread { background: #ff3b30; animation: pulseUnread 1.4s infinite; }
+    @keyframes pulseUnread {
+      0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.5); }
+      70% { box-shadow: 0 0 0 6px rgba(255,59,48,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
+    }
     .del-btn {
       flex: 0 0 auto; width: 34px; height: 34px; border: 0; border-radius: 50%;
       background: transparent; color: var(--muted); cursor: pointer;
@@ -365,6 +371,7 @@
 
     // ---- New-message notifications (toast + sound + system notification) ----
     let knownMessageIds = new Set();   // ids we've already shown
+    let unreadCounts = {};             // clientId -> number of unread client messages
     let notifEnabled = false;
 
     async function ensureNotifPermission() {
@@ -437,7 +444,9 @@
             <button class="del-btn" data-del-id="${client.id}" title="Delete user" aria-label="Delete user">
               <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M10 11v6M14 11v6"></path></svg>
             </button>
-            <div class="badge">${client.messages.length}</div>
+            ${(unreadCounts[client.id] > 0)
+              ? `<div class="badge unread">${unreadCounts[client.id]}</div>`
+              : `<div class="badge">${client.messages.length}</div>`}
           </li>`;
       }).join('');
 
@@ -511,6 +520,7 @@
 
     function showChat(clientId) {
       selectedClientId = clientId;
+      unreadCounts[clientId] = 0;   // mark this conversation as read
       renderClients();
       renderMessages();
       listView.classList.add('hidden');
@@ -543,7 +553,13 @@
         for (const c of clients) {
           for (const m of (c.messages || [])) {
             if (m.sender_type === 'client' && !knownMessageIds.has(m.id)) {
-              if (knownMessageIds.size > 0) notifyNewMessage(c, m); // skip the initial seed
+              if (knownMessageIds.size > 0) {
+                notifyNewMessage(c, m); // skip the initial seed
+                // count as unread unless this conversation is the one on screen
+                if (c.id !== selectedClientId || chatView.classList.contains('hidden')) {
+                  unreadCounts[c.id] = (unreadCounts[c.id] || 0) + 1;
+                }
+              }
               knownMessageIds.add(m.id);
             }
           }

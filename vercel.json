@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "buildCommand": "echo 'no build step needed (static + serverless function)'",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/admin", "destination": "/api/index.js" },
+    { "source": "/health", "destination": "/api/index.js" }
+  ]
+}

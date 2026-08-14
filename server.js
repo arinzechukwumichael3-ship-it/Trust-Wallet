@@ -1,76 +1,24 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const store = require('./lib/store');
 
 const app = express();
 const PORT = process.env.PORT || 5500;
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, 'data');
-const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
 const upload = multer({ storage: multer.memoryStorage() });
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-function defaultState() {
-  return {
-    nextClientId: 1,
-    nextMessageId: 1,
-    clients: []
-  };
-}
-
-function loadState() {
-  ensureDataDir();
-
-  try {
-    if (!fs.existsSync(STATE_FILE)) {
-      fs.writeFileSync(STATE_FILE, JSON.stringify(defaultState(), null, 2));
-      return defaultState();
-    }
-
-    const raw = fs.readFileSync(STATE_FILE, 'utf8');
-    if (!raw.trim()) {
-      fs.writeFileSync(STATE_FILE, JSON.stringify(defaultState(), null, 2));
-      return defaultState();
-    }
-
-    const parsed = JSON.parse(raw);
-    return {
-      nextClientId: Number(parsed.nextClientId || 1),
-      nextMessageId: Number(parsed.nextMessageId || 1),
-      clients: Array.isArray(parsed.clients) ? parsed.clients : []
-    };
-  } catch (error) {
-    console.error('Failed to load state, resetting storage:', error.message);
-    const fresh = defaultState();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(fresh, null, 2));
-    return fresh;
-  }
-}
-
-let state = loadState();
-
-function saveState() {
-  ensureDataDir();
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-}
 
 function makeCacheLock() {
   return crypto.randomBytes(24).toString('hex');
 }
 
-function getClientByCacheLock(cacheLock) {
+function getClientByCacheLock(state, cacheLock) {
   return state.clients.find(client => client.cache_lock === cacheLock) || null;
 }
 
-function getClientById(clientId) {
+function getClientById(state, clientId) {
   const id = Number(clientId);
   return state.clients.find(client => client.id === id) || null;
 }
@@ -95,14 +43,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(ROOT));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, status: 'running', port: PORT });
+  res.json({ ok: true, status: 'running', port: PORT, storage: store.isUsingKV() ? 'vercel-kv' : 'file' });
 });
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(ROOT, 'admin.html'));
 });
 
-app.get('/api/admin/clients', (req, res) => {
+app.get('/api/admin/clients', async (req, res) => {
+  const state = await store.getState();
   res.json({
     success: true,
     clients: state.clients.map(client => ({
@@ -117,13 +66,14 @@ app.get('/api/admin/clients', (req, res) => {
   });
 });
 
-app.post('/api/register-client', (req, res) => {
+app.post('/api/register-client', async (req, res) => {
   const { helpry_id, country } = req.body || {};
 
   if (!helpry_id) {
     return res.status(400).json({ success: false, error: 'Missing helpry_id' });
   }
 
+  const state = await store.getState();
   const client = {
     id: state.nextClientId++,
     ref_id: `TW-${String(state.nextClientId - 1).padStart(5, '0')}`,
@@ -135,7 +85,7 @@ app.post('/api/register-client', (req, res) => {
   };
 
   state.clients.push(client);
-  saveState();
+  await store.saveState(state);
 
   res.json({
     success: true,
@@ -149,14 +99,15 @@ app.post('/api/register-client', (req, res) => {
   });
 });
 
-app.post('/api/verify-cache-lock', (req, res) => {
+app.post('/api/verify-cache-lock', async (req, res) => {
   const { cache_lock } = req.body || {};
 
   if (!cache_lock) {
     return res.status(400).json({ valid: false, reason: 'Missing cache_lock' });
   }
 
-  const client = getClientByCacheLock(cache_lock);
+  const state = await store.getState();
+  const client = getClientByCacheLock(state, cache_lock);
   if (!client) {
     return res.json({ valid: false, reason: 'invalid cache lock' });
   }
@@ -173,14 +124,15 @@ app.post('/api/verify-cache-lock', (req, res) => {
   });
 });
 
-app.post('/api/messages/fetch', (req, res) => {
+app.post('/api/messages/fetch', async (req, res) => {
   const { cache_lock } = req.body || {};
 
   if (!cache_lock) {
     return res.status(400).json({ success: false, error: 'Missing cache_lock' });
   }
 
-  const client = getClientByCacheLock(cache_lock);
+  const state = await store.getState();
+  const client = getClientByCacheLock(state, cache_lock);
   if (!client) {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
@@ -191,14 +143,15 @@ app.post('/api/messages/fetch', (req, res) => {
   });
 });
 
-app.post('/api/messages/send', upload.array('images[]', 3), (req, res) => {
+app.post('/api/messages/send', upload.array('images[]', 3), async (req, res) => {
   const { cache_lock, message } = req.body || {};
 
   if (!cache_lock) {
     return res.status(400).json({ success: false, error: 'Missing cache_lock' });
   }
 
-  const client = getClientByCacheLock(cache_lock);
+  const state = await store.getState();
+  const client = getClientByCacheLock(state, cache_lock);
   if (!client) {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
@@ -208,16 +161,22 @@ app.post('/api/messages/send', upload.array('images[]', 3), (req, res) => {
     return res.status(400).json({ success: false, error: 'Empty message' });
   }
 
+  // NOTE: image persistence (saving uploaded files / returning URLs) is intentionally
+  // left minimal for the local demo. On Vercel you would persist images to Blob storage
+  // and store the resulting URLs in image_urls. The client UI already renders image_urls.
+  const image_urls = [];
+
   const newMessage = {
     id: state.nextMessageId++,
     sender_type: 'client',
     message: msgText,
-    image_urls: [],
+    image_urls,
     created_at: new Date().toISOString()
   };
 
+  client.messages = client.messages || [];
   client.messages.push(newMessage);
-  saveState();
+  await store.saveState(state);
 
   return res.json({
     success: true,
@@ -225,14 +184,15 @@ app.post('/api/messages/send', upload.array('images[]', 3), (req, res) => {
   });
 });
 
-app.post('/api/admin/reply', (req, res) => {
+app.post('/api/admin/reply', async (req, res) => {
   const { client_id, message } = req.body || {};
 
   if (!client_id) {
     return res.status(400).json({ success: false, error: 'Missing client_id' });
   }
 
-  const client = getClientById(client_id);
+  const state = await store.getState();
+  const client = getClientById(state, client_id);
   if (!client) {
     return res.status(404).json({ success: false, error: 'Client not found' });
   }
@@ -250,8 +210,9 @@ app.post('/api/admin/reply', (req, res) => {
     created_at: new Date().toISOString()
   };
 
+  client.messages = client.messages || [];
   client.messages.push(reply);
-  saveState();
+  await store.saveState(state);
 
   return res.json({
     success: true,
@@ -259,7 +220,8 @@ app.post('/api/admin/reply', (req, res) => {
   });
 });
 
-app.get('/api/admin/seed-demo', (req, res) => {
+app.get('/api/admin/seed-demo', async (req, res) => {
+  const state = await store.getState();
   if (state.clients.length > 0) {
     return res.json({ success: true, message: 'Demo already created', clients: state.clients.length });
   }
@@ -283,7 +245,7 @@ app.get('/api/admin/seed-demo', (req, res) => {
   };
 
   state.clients.push(demoClient);
-  saveState();
+  await store.saveState(state);
 
   return res.json({ success: true, client: demoClient });
 });
@@ -294,15 +256,31 @@ app.use((req, res) => {
   }
 
   const fallback = path.join(ROOT, req.path.replace(/^\//, ''));
-  if (fs.existsSync(fallback) && fs.statSync(fallback).isFile()) {
+  if (fsExistsSafe(fallback)) {
     return res.sendFile(fallback);
   }
 
   return res.status(404).json({ success: false, error: 'Not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Helpry local chat server is running on http://127.0.0.1:${PORT}`);
-  console.log('Open http://127.0.0.1:5500/helpry.jp/cmupnn-trustwallet-xostfj-helpry-eohlok-trustwallet-gkqtyx.html to test the widget');
-  console.log('Open http://127.0.0.1:5500/admin to manage chats');
-});
+function fsExistsSafe(p) {
+  try {
+    // eslint-disable-next-line no-sync
+    return require('fs').existsSync(p) && require('fs').statSync(p).isFile();
+  } catch (e) {
+    return false;
+  }
+}
+
+// Export the app so Vercel's serverless function (api/index.js) can reuse it.
+// `npm start` / `node server.js` still listens and serves locally.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Helpry local chat server is running on http://127.0.0.1:${PORT}`);
+    console.log('Storage backend:', store.isUsingKV() ? 'Vercel KV' : 'local file (data/state.json)');
+    console.log('Open http://127.0.0.1:5500/helpry.jp/cmupnn-trustwallet-xostfj-helpry-eohlok-trustwallet-gkqtyx.html to test the widget');
+    console.log('Open http://127.0.0.1:5500/admin to manage chats');
+  });
+}
+
+module.exports = app;

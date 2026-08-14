@@ -104,3 +104,5 @@ Set `ADMIN_PASSWORD` in Vercel env vars so the wrapped app prompts for the passw
 | GET  | `/api/admin/seed-demo` | Seed a demo client |
 | GET  | `/admin` | Admin console |
 | GET  | `/health` | Health check |
+
+> The sending domain for production email is `yieldempire.org` — it must be verified in Resend (DNS records) for delivery to leave test mode.

@@ -51,11 +51,20 @@ Local state is stored in `data/state.json` (gitignored).
 
 ## Notes / known limitations
 
-- Image uploads are accepted (up to 3) but not yet stored; `image_urls` stays empty.
-  On Vercel, persist images to Vercel Blob and store the returned URLs.
-- `/admin` has no authentication. Add a token/env guard before exposing it publicly.
-- The widget references Pusher/Laravel Echo for realtime push, but delivery currently
-  relies on polling (widget every 3s, admin every 5s). Echo is wired but unused server-side.
+- **Admin auth:** `/admin` is protected by a shared password (`ADMIN_PASSWORD` env var, default `helpry-admin` — change it). The password is never exposed to the client; every `/api/admin/*` route requires the session cookie.
+- **Image/file uploads:** accepted from both the widget and the admin (up to 3, 8 MB each). When `BLOB_READ_WRITE_TOKEN` is set, uploads go to Vercel Blob (durable public URLs); otherwise they are stored inline as data URLs so they always render on Vercel's read-only filesystem.
+- **Realtime:** the admin polls every 5s and the widget every 3s. There is no websocket push server; Laravel Echo is wired but unused server-side.
+- **Durability:** every client that registers (Start Chat) is saved permanently in the store. They are only removed when an admin deletes them from the admin console. For permanence on Vercel, link Upstash Redis (see deploy steps) — without it, Vercel's ephemeral `/tmp` can lose data on cold starts.
+
+## Wrapping the admin as a mobile app (Median.co / APK)
+
+The admin console is a normal web page, so Median.co can wrap `/admin` into an Android APK. To get notified of new client messages on your phone:
+
+1. Build the APK at median.co pointing at `https://<your-vercel-domain>/admin` and install it.
+2. When the app is open, the admin page shows an in-app toast + plays a sound + fires a system notification whenever a client sends a new message (the 5s poll detects it). Tap the notification to jump into that conversation.
+3. For notifications while the app is **backgrounded/closed**, use Median's **Native Push** feature: enable push in the Median project, and when a notification arrives open the app to `/admin` to see the message. (True server→device push would require a push provider like Firebase; the in-app alert covers the "app open" case, which is what matters for live support.)
+
+Set `ADMIN_PASSWORD` in Vercel env vars so the wrapped app prompts for the password on launch.
 
 ## API summary
 
@@ -67,6 +76,11 @@ Local state is stored in `data/state.json` (gitignored).
 | POST | `/api/messages/send` | Client sends a message (text + up to 3 images) |
 | POST | `/api/admin/reply` | Admin replies to a client by `client_id` |
 | GET  | `/api/admin/clients` | Full client + message list for the admin UI |
+| GET  | `/api/admin/storage-status` | Whether data is durable (Redis) or temporary |
+| DELETE | `/api/admin/clients/:id` | Permanently delete a client + their messages |
+| POST | `/api/admin/login` | Admin password login (sets session cookie) |
+| POST | `/api/admin/logout` | Clear the session cookie |
+| GET  | `/api/admin/me` | Returns whether the current session is authed |
 | GET  | `/api/admin/seed-demo` | Seed a demo client |
 | GET  | `/admin` | Admin console |
 | GET  | `/health` | Health check |

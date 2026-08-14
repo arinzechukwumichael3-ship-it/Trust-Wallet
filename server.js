@@ -31,7 +31,6 @@ const ROOT = __dirname;
 // On Vercel, static assets live in /public (auto-served). Locally we serve them
 // from there too so the same code path works in both environments.
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
@@ -110,10 +109,13 @@ function listClientMessages(client) {
 // ---------------------------------------------------------------------------
 // Image persistence
 //
-// 1. Vercel Blob  — used automatically when BLOB_READ_WRITE_TOKEN is present.
-// 2. Local disk   — public/uploads/*.jpg (works locally; on Vercel the function
-//                   filesystem is ephemeral, so this is a best-effort fallback).
-// 3. Data URL     — last-resort inline fallback so uploads never silently vanish.
+// 1. Vercel Blob — used automatically when BLOB_READ_WRITE_TOKEN is present.
+//    Durable, public URLs; survives cold starts. Recommended for production.
+// 2. Data URL    — when Blob is NOT linked (the common case right now), store
+//    the image inline as a data: URL in image_urls. This ALWAYS renders in the
+//    widget and admin on Vercel's read-only filesystem with zero extra setup.
+//    Trade-off: larger state payloads, and not durable across cold starts.
+//    Linking Blob is the way to get durable, lightweight URLs.
 // ---------------------------------------------------------------------------
 async function persistImages(files) {
   const urls = [];
@@ -135,26 +137,11 @@ async function persistImages(files) {
       }
       return urls;
     } catch (e) {
-      console.error('Vercel Blob upload failed, falling back to disk:', e.message);
+      console.error('Vercel Blob upload failed, falling back to data URLs:', e.message);
     }
   }
 
-  // local disk fallback
-  try {
-    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    for (const f of files) {
-      const ext = (f.originalname && path.extname(f.originalname)) ||
-        (f.mimetype && '.' + f.mimetype.split('/')[1]) || '.jpg';
-      const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-      fs.writeFileSync(path.join(UPLOAD_DIR, name), f.buffer);
-      urls.push(`/uploads/${name}`);
-    }
-    return urls;
-  } catch (e) {
-    console.error('Disk upload failed, falling back to data URLs:', e.message);
-  }
-
-  // data-url last resort
+  // No Blob linked -> inline data URLs so images always render.
   for (const f of files) {
     urls.push(`data:${f.mimetype || 'image/jpeg'};base64,${f.buffer.toString('base64')}`);
   }
@@ -224,8 +211,9 @@ app.get('/api/admin/clients', requireAdmin, async (req, res) => {
   });
 });
 
-app.post('/api/admin/reply', requireAdmin, async (req, res) => {
-  const { client_id, message } = req.body || {};
+app.post('/api/admin/reply', requireAdmin, upload.array('images[]', 5), async (req, res) => {
+  const client_id = (req.body && req.body.client_id) || undefined;
+  const message = (req.body && req.body.message) || '';
 
   if (!client_id) {
     return res.status(400).json({ success: false, error: 'Missing client_id' });
@@ -238,7 +226,8 @@ app.post('/api/admin/reply', requireAdmin, async (req, res) => {
   }
 
   const msgText = (message || '').trim();
-  if (!msgText) {
+  const image_urls = await persistImages(req.files);
+  if (!msgText && image_urls.length === 0) {
     return res.status(400).json({ success: false, error: 'Message is empty' });
   }
 
@@ -246,7 +235,7 @@ app.post('/api/admin/reply', requireAdmin, async (req, res) => {
     id: state.nextMessageId++,
     sender_type: 'admin',
     message: msgText,
-    image_urls: [],
+    image_urls,
     created_at: new Date().toISOString()
   };
 

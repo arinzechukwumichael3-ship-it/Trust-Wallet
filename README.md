@@ -60,8 +60,8 @@ Local state is stored in `data/state.json` (gitignored).
 
 The widget requires the customer to **connect their email before chatting** (Start Chat screen). Once connected, every message triggers a professional, branded email through Resend using the shared business inbox `trustsupport@yieldempire.org`:
 
-- **Client sends a message** → support is emailed the transcript at `trustsupport@yieldempire.org`. The email's `Reply-To` is set to the customer's address, so support can reply straight from their inbox and it threads back to the person.
-- **Support replies in the admin console** → the customer is emailed that reply from `trustsupport@yieldempire.org`.
+- **Client sends a message** → the transcript is emailed to the support inbox **and every address in `ADMIN_NOTIFY_EMAILS`** (the people who run support). The email's `Reply-To` is set to the customer's address, so support can reply straight from their inbox and it threads back to the person.
+- **Support replies in the admin console** → the customer is emailed that reply from `trustsupport@yieldempire.org` (sent to the email the client connected on the widget).
 
 Email is best-effort: a delivery failure is logged and never blocks the in-app chat.
 
@@ -72,6 +72,7 @@ Email is best-effort: a delivery failure is logged and never blocks the in-app c
 | `RESEND_API_KEY` | API key from https://resend.com (starts with `re_`) |
 | `EMAIL_FROM` | `Trust Wallet Support <trustsupport@yieldempire.org>` |
 | `SUPPORT_EMAIL` | `trustsupport@yieldempire.org` |
+| `ADMIN_NOTIFY_EMAILS` | Comma-separated extra inboxes that also receive each client→support message (e.g. `a@gmail.com,b@gmail.com`) |
 
 > **Resend deliverability:** the `yieldempire.org` (or `helpry.jp`) domain must be **verified in Resend** (add the DNS records Resend shows you) before real emails send. While unverified, Resend stays in test mode and only allows its own test address — the code still runs, the chat still works, and the failed send is logged so nothing is lost. `APP_URL` (your production domain, e.g. `https://helpry.jp`) makes the "Open the chat" button in emails point to the live site.
 

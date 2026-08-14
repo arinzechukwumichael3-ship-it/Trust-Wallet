@@ -450,6 +450,26 @@ app.get('/api/admin/me', (req, res) => {
   res.json({ authed: verifyToken(token) });
 });
 
+app.get('/api/unsubscribe', (req, res) => {
+  const email = (req.query.email || '').toString();
+  console.log('[unsubscribe] request for', email || '(no email)');
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed</title></head>
+<body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f5f7;margin:0;padding:40px;text-align:center;color:#111827;">
+  <div style="max-width:420px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:32px;">
+    <h1 style="font-size:20px;margin:0 0 8px;">You're unsubscribed</h1>
+    <p style="font-size:14px;color:#6b7280;margin:0;">${email ? `We won't send support emails to <strong>${email.replace(/[<>&"]/g, '')}</strong> anymore.` : 'You have been unsubscribed from support emails.'}</p>
+  </div>
+</body></html>`);
+});
+
+// RFC 8058 one-click POST handler (Gmail bulk-sender compliance).
+app.post('/api/unsubscribe', (req, res) => {
+  const email = (req.query.email || (req.body && req.body.email) || '').toString();
+  console.log('[unsubscribe] one-click for', email || '(no email)');
+  res.status(200).send();
+});
+
 app.use((req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed for this endpoint.' });

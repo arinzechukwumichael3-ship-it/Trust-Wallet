@@ -1,363 +1,432 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Helpry Admin</title>
-    <style>
-      :root {
-        --bg: #0f172a;
-        --panel: #111827;
-        --panel-2: #1f2937;
-        --text: #e5e7eb;
-        --muted: #94a3b8;
-        --primary: #0500ff;
-        --border: rgba(255,255,255,0.12);
-        --success: #10b981;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>Helpry Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #0500ff;
+      --primary-dark: #0400cc;
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --text: #111827;
+      --muted: #68707a;
+      --border: #e3e7ee;
+      --success: #10b981;
+      --client-bubble: #0500ff;
+      --admin-bubble: #ffffff;
+      --appbar-h: 56px;
+    }
 
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: Arial, Helvetica, sans-serif;
-        background: linear-gradient(135deg, #0f172a, #111827 42%, #1e293b);
-        color: var(--text);
-      }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-      .app {
-        max-width: 1200px;
-        margin: 32px auto;
-        padding: 20px;
-      }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: 'Roboto', -apple-system, 'Segoe UI', Arial, sans-serif;
+      background: #0b1020;
+      color: var(--text);
+    }
 
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 20px;
+    /* Phone frame — fills the screen on mobile, looks like a device on desktop */
+    #phone {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      background: var(--bg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    }
+    @media (min-width: 480px) {
+      #phone {
+        height: min(880px, 96vh);
+        margin: 2vh auto;
+        border-radius: 28px;
+        border: 1px solid rgba(255,255,255,0.08);
       }
+    }
 
-      .brand {
-        font-size: 1.8rem;
-        font-weight: 700;
-      }
+    .view {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      transform: translateX(0);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #chatView { transform: translateX(100%); }
+    #chatView.active { transform: translateX(0); }
+    .hidden { display: none !important; }
 
-      .status {
-        color: var(--success);
-        font-size: 0.88rem;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 8px 12px;
-        background: rgba(16, 185, 129, 0.08);
-      }
+    /* Material app bar */
+    .appbar {
+      flex: 0 0 var(--appbar-h);
+      height: var(--appbar-h);
+      min-height: var(--appbar-h);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      padding-top: env(safe-area-inset-top);
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      z-index: 5;
+    }
+    .appbar .title { font-size: 1.05rem; font-weight: 500; flex: 1; line-height: 1.1; }
+    .appbar .sub { font-size: 0.72rem; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+    .appbar .icon-btn {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border: 0; background: transparent; color: #fff;
+      border-radius: 50%; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .appbar .icon-btn:active { background: rgba(255,255,255,0.18); }
+    .appbar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
 
-      .layout {
-        display: grid;
-        grid-template-columns: 320px 1fr;
-        gap: 20px;
-      }
+    .status-dot {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; font-weight: 500; padding: 4px 10px;
+      border-radius: 999px; background: rgba(255,255,255,0.16);
+    }
+    .status-dot .pulse {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+      box-shadow: 0 0 0 0 rgba(16,185,129,0.6);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+      70% { box-shadow: 0 0 0 7px rgba(16,185,129,0); }
+      100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    }
+    .status-dot.error { background: rgba(239,68,68,0.25); }
+    .status-dot.error .pulse { background: #f87171; animation: none; }
 
-      .panel {
-        background: rgba(17, 24, 39, 0.9);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
-      }
+    /* Conversation list */
+    .list-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .client-list { list-style: none; margin: 0; padding: 0; }
+    .client-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .client-item:active { background: #eef1f6; }
+    .client-item.active { background: #eef0ff; }
 
-      .client-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
+    .avatar {
+      flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.05rem; color: #fff;
+      background: linear-gradient(135deg, #0500ff, #00d395);
+    }
+    .row-main { flex: 1; min-width: 0; }
+    .row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .row-name { font-weight: 500; font-size: 0.95rem; color: var(--text); }
+    .row-time { font-size: 0.72rem; color: var(--muted); flex: 0 0 auto; }
+    .row-preview {
+      margin-top: 3px; font-size: 0.83rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .badge {
+      flex: 0 0 auto; min-width: 22px; height: 22px; padding: 0 6px;
+      border-radius: 999px; background: var(--primary); color: #fff;
+      font-size: 0.72rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .empty {
+      text-align: center; color: var(--muted); padding: 48px 24px; font-size: 0.9rem;
+    }
 
-      .client-item {
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: rgba(31,41,55,0.8);
-        padding: 12px;
-        cursor: pointer;
-      }
+    /* Chat thread */
+    .thread {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 14px 12px 8px;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(5,0,255,0.04), transparent 40%),
+        var(--bg);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .day-sep { text-align: center; margin: 4px 0; }
+    .day-sep span {
+      font-size: 0.7rem; color: var(--muted); background: rgba(255,255,255,0.7);
+      padding: 3px 10px; border-radius: 999px;
+    }
+    .msg { display: flex; max-width: 82%; }
+    .msg.client { align-self: flex-end; justify-content: flex-end; }
+    .msg.admin { align-self: flex-start; justify-content: flex-start; }
+    .bubble {
+      padding: 9px 12px; border-radius: 16px; line-height: 1.45;
+      font-size: 0.92rem; word-break: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    }
+    .msg.client .bubble { background: var(--client-bubble); color: #fff; border-bottom-right-radius: 5px; }
+    .msg.admin .bubble { background: var(--admin-bubble); color: var(--text); border-bottom-left-radius: 5px; border: 1px solid var(--border); }
+    .bubble .t { display: block; margin-top: 4px; font-size: 0.66rem; opacity: 0.75; text-align: right; }
+    .msg.client .bubble .t { color: rgba(255,255,255,0.85); }
 
-      .client-item.active {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 1px rgba(5, 0, 255, 0.45);
-      }
-
-      .client-name {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-weight: 700;
-        margin-bottom: 6px;
-      }
-
-      .muted {
-        color: var(--muted);
-        font-size: 0.85rem;
-      }
-
-      .chat-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .messages {
-        min-height: 360px;
-        max-height: 520px;
-        overflow: auto;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        background: rgba(15, 23, 42, 0.7);
-        padding: 14px;
-      }
-
-      .message {
-        margin-bottom: 12px;
-        display: flex;
-      }
-
-      .message.client {
-        justify-content: flex-end;
-      }
-
-      .bubble {
-        max-width: 75%;
-        padding: 10px 12px;
-        border-radius: 12px;
-        line-height: 1.5;
-        word-break: break-word;
-      }
-
-      .message.client .bubble {
-        background: var(--primary);
-        color: white;
-      }
-
-      .message.admin .bubble {
-        background: #e5e7eb;
-        color: #111827;
-      }
-
-      .composer {
-        display: flex;
-        gap: 12px;
-      }
-
-      textarea {
-        width: 100%;
-        min-height: 80px;
-        resize: vertical;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: rgba(15, 23, 42, 0.7);
-        color: var(--text);
-        padding: 12px 14px;
-      }
-
-      button {
-        border: 0;
-        border-radius: 12px;
-        background: var(--primary);
-        color: white;
-        padding: 12px 18px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-
-      button.secondary {
-        background: rgba(148, 163, 184, 0.2);
-      }
-
-      .toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        gap: 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="app">
-      <div class="topbar">
-        <div class="brand">Helpry Admin</div>
-        <div class="status" id="statusText">Connected</div>
+    /* Composer */
+    .composer {
+      flex: 0 0 auto; display: flex; align-items: flex-end; gap: 8px;
+      padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
+      background: var(--surface); border-top: 1px solid var(--border);
+    }
+    .composer textarea {
+      flex: 1; width: 100%; max-height: 120px; min-height: 44px;
+      resize: none; border: 0; outline: none; border-radius: 22px;
+      background: var(--bg); color: var(--text);
+      padding: 11px 16px; font-family: inherit; font-size: 0.95rem;
+    }
+    .send-btn {
+      flex: 0 0 auto; width: 46px; height: 46px; border: 0; border-radius: 50%;
+      background: var(--primary); color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 8px rgba(5,0,255,0.4);
+      transition: transform 0.12s, background 0.12s;
+    }
+    .send-btn:active { transform: scale(0.92); background: var(--primary-dark); }
+    .send-btn svg { width: 22px; height: 22px; fill: #fff; }
+  </style>
+</head>
+<body>
+  <div id="phone">
+    <!-- Conversations list -->
+    <section id="listView" class="view">
+      <header class="appbar">
+        <div style="flex:1; min-width:0;">
+          <div class="title">Helpry Admin</div>
+          <div class="sub">Trust Wallet support</div>
+        </div>
+        <div id="listStatus" class="status-dot"><span class="pulse"></span><span id="listStatusText">Connecting</span></div>
+        <button id="seedDemoBtn" class="icon-btn" title="Seed demo" aria-label="Seed demo">
+          <svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none;"><path d="M12 2l1.6 4.8L18 8.4l-4.4 1.6L12 15l-1.6-5L6 8.4l4.4-1.6L12 2z"/></svg>
+        </button>
+      </header>
+      <div class="list-scroll">
+        <ul id="clientList" class="client-list"></ul>
       </div>
+    </section>
 
-      <div class="layout">
-        <aside class="panel">
-          <div class="toolbar">
-            <strong>Clients</strong>
-            <button id="seedDemoBtn" class="secondary" type="button">Seed demo</button>
-          </div>
-          <ul id="clientList" class="client-list"></ul>
-        </aside>
-
-        <main class="panel chat-panel">
-          <div id="chatHeader" class="muted">Select a client to view the conversation.</div>
-          <div id="messages" class="messages"></div>
-          <div class="composer">
-            <textarea id="replyInput" placeholder="Type a message to the client..."></textarea>
-            <button id="sendReplyBtn" type="button">Send reply</button>
-          </div>
-        </main>
+    <!-- Chat thread -->
+    <section id="chatView" class="view hidden">
+      <header class="appbar">
+        <button id="backBtn" class="icon-btn" aria-label="Back">
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div style="flex:1; min-width:0;">
+          <div class="title" id="chatTitle">Client</div>
+          <div class="sub" id="chatSub">Loading…</div>
+        </div>
+        <div id="chatStatus" class="status-dot"><span class="pulse"></span><span id="chatStatusText">Live</span></div>
+      </header>
+      <div id="messages" class="thread"></div>
+      <div class="composer">
+        <textarea id="replyInput" rows="1" placeholder="Message the client…"></textarea>
+        <button id="sendReplyBtn" class="send-btn" aria-label="Send">
+          <svg viewBox="0 0 24 24"><path d="M3 20.5l18-8.5-18-8.5 0 6.5 12 2-12 2z"/></svg>
+        </button>
       </div>
-    </div>
+    </section>
+  </div>
 
-    <script>
-      let clients = [];
-      let selectedClientId = null;
+  <script>
+    let clients = [];
+    let selectedClientId = null;
 
-      function setStatus(text) {
-        document.getElementById('statusText').textContent = text;
+    const listView = document.getElementById('listView');
+    const chatView = document.getElementById('chatView');
+    const clientListEl = document.getElementById('clientList');
+    const messagesEl = document.getElementById('messages');
+
+    function setStatus(text, isError) {
+      const t = document.getElementById('listStatusText');
+      const d = document.getElementById('listStatus');
+      t.textContent = text;
+      d.classList.toggle('error', !!isError);
+    }
+    function setChatStatus(text, isError) {
+      const t = document.getElementById('chatStatusText');
+      const d = document.getElementById('chatStatus');
+      t.textContent = text;
+      d.classList.toggle('error', !!isError);
+    }
+
+    function formatTime(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      if (sameDay) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    function lastMessage(client) {
+      return client.messages.length ? client.messages[client.messages.length - 1] : null;
+    }
+    function initials(ref) {
+      return (ref || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'TW';
+    }
+
+    function renderClients() {
+      if (!clients.length) {
+        clientListEl.innerHTML = '<li class="empty">No clients yet.<br>Tap the ✦ button to seed a demo conversation.</li>';
+        return;
       }
-
-      function formatTime(value) {
-        if (!value) return '';
-        return new Date(value).toLocaleString();
-      }
-
-      function renderClients() {
-        const list = document.getElementById('clientList');
-        if (!clients.length) {
-          list.innerHTML = '<li class="muted">No clients yet.</li>';
-          return;
-        }
-
-        list.innerHTML = clients.map(client => `
+      clientListEl.innerHTML = clients.map(client => {
+        const last = lastMessage(client);
+        const preview = last
+          ? (last.sender_type === 'admin' ? 'You: ' : '') + (last.message || '(image)')
+          : 'No messages yet';
+        return `
           <li class="client-item ${selectedClientId === client.id ? 'active' : ''}" data-client-id="${client.id}">
-            <div class="client-name">
-              <span>${client.ref_id}</span>
-              <span class="muted">${client.messages.length}</span>
+            <div class="avatar">${initials(client.ref_id)}</div>
+            <div class="row-main">
+              <div class="row-top">
+                <span class="row-name">${client.ref_id}</span>
+                <span class="row-time">${last ? formatTime(last.created_at) : ''}</span>
+              </div>
+              <div class="row-preview">${preview}</div>
             </div>
-            <div class="muted">${client.country || 'Unknown'} · ${client.helpry_id}</div>
-          </li>
-        `).join('');
+            <div class="badge">${client.messages.length}</div>
+          </li>`;
+      }).join('');
 
-        document.querySelectorAll('.client-item').forEach(item => {
-          item.addEventListener('click', () => {
-            selectedClientId = Number(item.dataset.clientId);
-            renderClients();
-            renderMessages();
-          });
-        });
+      clientListEl.querySelectorAll('.client-item').forEach(item => {
+        item.addEventListener('click', () => showChat(Number(item.dataset.clientId)));
+      });
+    }
+
+    function renderMessages() {
+      const selected = clients.find(c => c.id === selectedClientId);
+      if (!selected) {
+        messagesEl.innerHTML = '<div class="empty">No client selected.</div>';
+        return;
       }
+      document.getElementById('chatTitle').textContent = selected.ref_id;
+      document.getElementById('chatSub').textContent = `${selected.country || 'Unknown'} · ${selected.helpry_id}`;
 
-      function renderMessages() {
-        const messagesEl = document.getElementById('messages');
-        const headerEl = document.getElementById('chatHeader');
-
-        const selectedClient = clients.find(c => c.id === selectedClientId);
-        if (!selectedClient) {
-          messagesEl.innerHTML = '<div class="muted">No client selected.</div>';
-          headerEl.textContent = 'Select a client to view the conversation.';
-          return;
-        }
-
-        headerEl.textContent = `${selectedClient.ref_id} · ${selectedClient.country} · ${selectedClient.helpry_id}`;
-
-        if (!selectedClient.messages.length) {
-          messagesEl.innerHTML = '<div class="muted">No messages yet.</div>';
-          return;
-        }
-
-        messagesEl.innerHTML = selectedClient.messages.map(msg => `
-          <div class="message ${msg.sender_type === 'client' ? 'client' : 'admin'}">
-            <div class="bubble">
-              ${msg.message || '(image)'}
-              <div class="muted" style="margin-top: 6px; font-size: 11px; color: rgba(0,0,0,0.7);">${formatTime(msg.created_at)}</div>
-            </div>
+      if (!selected.messages.length) {
+        messagesEl.innerHTML = '<div class="empty">No messages yet. Say hello 👋</div>';
+        return;
+      }
+      messagesEl.innerHTML = selected.messages.map(msg => `
+        <div class="msg ${msg.sender_type === 'client' ? 'client' : 'admin'}">
+          <div class="bubble">
+            ${msg.message || '(image)'}
+            <span class="t">${formatTime(msg.created_at)}</span>
           </div>
-        `).join('');
+        </div>`).join('');
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
 
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+    function showChat(clientId) {
+      selectedClientId = clientId;
+      renderClients();
+      renderMessages();
+      listView.classList.add('hidden');
+      chatView.classList.remove('hidden');
+      // force reflow so the slide-in transition runs
+      void chatView.offsetWidth;
+      chatView.classList.add('active');
+      setChatStatus('Live');
+      const input = document.getElementById('replyInput');
+      setTimeout(() => input.focus(), 280);
+    }
+
+    function showList() {
+      chatView.classList.remove('active');
+      setTimeout(() => {
+        chatView.classList.add('hidden');
+        listView.classList.remove('hidden');
+      }, 280);
+    }
+
+    async function fetchClients() {
+      try {
+        const response = await fetch('/api/admin/clients');
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Could not load clients');
+        clients = data.clients || [];
+        if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
+        renderClients();
+        if (!chatView.classList.contains('hidden')) renderMessages();
+        setStatus('Live');
+      } catch (error) {
+        setStatus('Offline', true);
+        console.error(error);
       }
+    }
 
-      async function fetchClients() {
-        try {
-          const response = await fetch('/api/admin/clients');
-          const data = await response.json();
-          if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Could not load clients');
-          }
-
-          clients = data.clients || [];
-          if (!selectedClientId && clients.length) {
-            selectedClientId = clients[0].id;
-          }
-
-          renderClients();
-          renderMessages();
-          setStatus('Connected');
-        } catch (error) {
-          setStatus('Error');
-          console.error(error);
-        }
+    async function sendReply() {
+      if (!selectedClientId) { alert('Select a client first.'); return; }
+      const input = document.getElementById('replyInput');
+      const text = input.value.trim();
+      if (!text) { alert('Type a reply before sending.'); return; }
+      try {
+        const response = await fetch('/api/admin/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: selectedClientId, message: text })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Reply failed');
+        input.value = '';
+        input.style.height = 'auto';
+        await fetchClients();
+        setChatStatus('Sent');
+      } catch (error) {
+        setChatStatus('Failed', true);
+        console.error(error);
+        alert(error.message);
       }
+    }
 
-      async function sendReply() {
-        if (!selectedClientId) {
-          alert('Select a client first.');
-          return;
-        }
-
-        const text = document.getElementById('replyInput').value.trim();
-        if (!text) {
-          alert('Type a reply before sending.');
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/admin/reply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: selectedClientId, message: text })
-          });
-
-          const data = await response.json();
-          if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Reply failed');
-          }
-
-          document.getElementById('replyInput').value = '';
-          await fetchClients();
-          setStatus('Reply sent');
-        } catch (error) {
-          setStatus('Send failed');
-          console.error(error);
-          alert(error.message);
-        }
+    async function seedDemo() {
+      try {
+        const response = await fetch('/api/admin/seed-demo', { method: 'GET' });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Seed failed');
+        await fetchClients();
+        selectedClientId = clients[0]?.id || null;
+        renderClients();
+        renderMessages();
+        setStatus('Demo seeded');
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
       }
+    }
 
-      async function seedDemo() {
-        try {
-          const response = await fetch('/api/admin/seed-demo');
-          const data = await response.json();
-          if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Seed failed');
-          }
-
-          await fetchClients();
-          selectedClientId = clients[0]?.id || null;
-          renderClients();
-          renderMessages();
-          setStatus('Demo seeded');
-        } catch (error) {
-          console.error(error);
-          alert(error.message);
-        }
+    // Composer auto-grow + Enter-to-send (Shift+Enter for newline)
+    const replyInput = document.getElementById('replyInput');
+    replyInput.addEventListener('input', () => {
+      replyInput.style.height = 'auto';
+      replyInput.style.height = Math.min(replyInput.scrollHeight, 120) + 'px';
+    });
+    replyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendReply();
       }
+    });
 
-      document.getElementById('sendReplyBtn').addEventListener('click', sendReply);
-      document.getElementById('seedDemoBtn').addEventListener('click', seedDemo);
-      fetchClients();
-      setInterval(fetchClients, 5000);
-    </script>
-  </body>
+    document.getElementById('sendReplyBtn').addEventListener('click', sendReply);
+    document.getElementById('seedDemoBtn').addEventListener('click', seedDemo);
+    document.getElementById('backBtn').addEventListener('click', showList);
+
+    fetchClients();
+    setInterval(fetchClients, 5000);
+  </script>
+</body>
 </html>

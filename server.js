@@ -5,6 +5,26 @@ const fs = require('fs');
 const crypto = require('crypto');
 const store = require('./lib/store');
 
+// Minimal .env loader for local dev (Vercel injects env vars directly, so we
+// only read a local .env file when present and not already set).
+(function loadDotEnv() {
+  try {
+    const dotEnvPath = path.join(__dirname, '.env');
+    if (!fs.existsSync(dotEnvPath)) return;
+    const text = fs.readFileSync(dotEnvPath, 'utf8');
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (!m) continue;
+      const key = m[1];
+      let val = m[2];
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (process.env[key] === undefined || process.env[key] === '') process.env[key] = val;
+    }
+  } catch (e) { /* ignore */ }
+})();
+
 const app = express();
 const PORT = process.env.PORT || 5500;
 const ROOT = __dirname;
@@ -28,6 +48,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 *
 // so it works identically on the local file backend and on Vercel serverless.
 // ---------------------------------------------------------------------------
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'helpry-admin';
+if (ADMIN_PASSWORD === 'helpry-admin') {
+  console.warn('\n⚠️  WARNING: ADMIN_PASSWORD is using the insecure default "helpry-admin".\n' +
+    '   Set ADMIN_PASSWORD (Vercel env var) or .env to a strong password before going live.\n');
+}
 const AUTH_SECRET = process.env.AUTH_SECRET || crypto.createHash('sha256').update('helpry-admin-auth-' + ADMIN_PASSWORD).digest('hex');
 const AUTH_COOKIE = 'helpry_admin';
 

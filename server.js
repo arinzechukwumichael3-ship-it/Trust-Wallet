@@ -7,6 +7,9 @@ const store = require('./lib/store');
 const app = express();
 const PORT = process.env.PORT || 5500;
 const ROOT = __dirname;
+// On Vercel, static assets live in /public (auto-served). Locally we serve them
+// from there too so the same code path works in both environments.
+const PUBLIC_DIR = path.join(ROOT, 'public');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -40,14 +43,14 @@ function listClientMessages(client) {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(ROOT));
+app.use(express.static(PUBLIC_DIR));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, status: 'running', port: PORT, storage: store.isUsingKV() ? 'vercel-kv' : 'file' });
+  res.json({ ok: true, status: 'running', port: PORT, storage: store.isUsingKV() ? 'vercel-upstash' : (store.isUsingKVClassic() ? 'vercel-kv' : 'file') });
 });
 
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(ROOT, 'admin.html'));
+  res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
 
 app.get('/api/admin/clients', async (req, res) => {
@@ -255,7 +258,7 @@ app.use((req, res) => {
     return res.status(405).json({ success: false, error: 'Method not allowed for this endpoint.' });
   }
 
-  const fallback = path.join(ROOT, req.path.replace(/^\//, ''));
+  const fallback = path.join(PUBLIC_DIR, req.path.replace(/^\//, ''));
   if (fsExistsSafe(fallback)) {
     return res.sendFile(fallback);
   }

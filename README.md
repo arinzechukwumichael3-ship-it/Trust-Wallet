@@ -10,10 +10,11 @@ page reloads and app restarts.
 - `server.js` — Express app (the single source of truth for the API). Runs as a
   local server via `npm start`, and is re-used as-is by the Vercel serverless function.
 - `api/index.js` — Vercel entry point; just exports the Express app from `server.js`.
-- `lib/store.js` — persistence layer. Uses **Vercel KV** automatically when a KV
-  store is linked to the project, otherwise falls back to `data/state.json` on disk.
-- `admin.html` — admin console (client list + reply composer).
-- `helpry.jp/cmupnn-trustwallet-*.html` — the widget / landing page.
+- `lib/store.js` — persistence layer. Uses **Upstash Redis** (or legacy Vercel KV)
+  automatically when a store is linked to the project, otherwise falls back to
+  `data/state.json` on disk.
+- `public/admin.html` — admin console (client list + reply composer).
+- `public/helpry.jp/cmupnn-trustwallet-*.html` — the widget / landing page.
 - `server.py` — standalone Python port of the API (kept for reference; not used in prod).
 
 ## Run locally
@@ -33,19 +34,20 @@ Local state is stored in `data/state.json` (gitignored).
 
 1. Push this repo to GitHub.
 2. In the Vercel dashboard: **Add New → Project → Import Git Repository** and select this repo.
-   Vercel auto-detects `vercel.json` and the `api/` folder — no framework preset needed.
+   Vercel auto-detects `vercel.json`, the `public/` static folder, and the `api/` serverless
+   function — no framework preset needed.
 3. **Add durable storage** (required, because serverless filesystems are ephemeral):
-   - Vercel dashboard → **Storage → Create / Link a Store → KV**.
-   - Choose "Link to this project". Vercel injects `KV_REST_API_URL` and
-     `KV_REST_API_TOKEN` automatically. `lib/store.js` picks them up with no code change.
-   - (Alternative: Upstash Redis → Storage → Upstash. Install `@upstash/redis` and point
-     `lib/store.js` at `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.)
+   - Vercel dashboard → **Storage → Upstash Redis → Create** (Vercel's current recommended store).
+   - Link it to the project. Vercel injects `UPSTASH_REDIS_REST_URL` and
+     `UPSTASH_REDIS_REST_TOKEN` automatically. `lib/store.js` picks them up with no code change.
+   - (Legacy: a Vercel KV store also works — it injects `KV_REST_API_URL` / `KV_REST_API_TOKEN`,
+     which the store still supports as a fallback.)
 4. Deploy. The widget at `/helpry.jp/...` and admin at `/admin` now run on Vercel
-   with conversations persisted in KV.
+   with conversations persisted in Upstash Redis.
 
-> Without a linked KV (or other DB) store, Vercel's ephemeral filesystem means chats
-> would be lost whenever a function instance recycles. Linking KV is what makes
-> "connect GitHub and it just works" true.
+> Without a linked store (Upstash or KV), Vercel's ephemeral filesystem means chats would be
+> lost whenever a function instance recycles. Linking a store is what makes "connect GitHub and
+> it just works" true.
 
 ## Notes / known limitations
 

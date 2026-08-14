@@ -1322,7 +1322,12 @@
             }
         } catch (error) {
             console.error('Unexpected startup error:', error);
-            alert('Failed to start chat. Please try again.\n' + (error?.message || 'Check the browser console for the API error.'));
+            // Give a useful message instead of the raw "signal is aborted" text.
+            let detail = error?.message || 'Check the browser console for the API error.';
+            if (error?.name === 'AbortError' || /abort/i.test(detail)) {
+                detail = 'The support server did not respond. The site may not be deployed yet — ask the site owner to redeploy, then try again.';
+            }
+            alert('Failed to start chat.\n' + detail);
             startChatBtn.disabled = false;
             startChatBtn.textContent = 'Start Chat';
         }

@@ -147,6 +147,21 @@
       font-size: 0.72rem; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
     }
+    .del-btn {
+      flex: 0 0 auto; width: 34px; height: 34px; border: 0; border-radius: 50%;
+      background: transparent; color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .del-btn:hover { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .del-btn:active { transform: scale(0.9); }
+    .del-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .storage-note {
+      font-size: 0.72rem; padding: 8px 14px; text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .storage-note.persistent { background: #e7f8f0; color: #0c8a5b; }
+    .storage-note.temp { background: #fff7e6; color: #b7791f; }
     .empty {
       text-align: center; color: var(--muted); padding: 48px 24px; font-size: 0.9rem;
     }
@@ -263,6 +278,7 @@
           <svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none;"><path d="M12 2l1.6 4.8L18 8.4l-4.4 1.6L12 15l-1.6-5L6 8.4l4.4-1.6L12 2z"/></svg>
         </button>
       </header>
+      <div id="storageNote" class="storage-note" style="display:none;"></div>
       <div class="list-scroll">
         <ul id="clientList" class="client-list"></ul>
       </div>
@@ -352,12 +368,37 @@
               </div>
               <div class="row-preview">${preview}</div>
             </div>
+            <button class="del-btn" data-del-id="${client.id}" title="Delete user" aria-label="Delete user">
+              <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M10 11v6M14 11v6"></path></svg>
+            </button>
             <div class="badge">${client.messages.length}</div>
           </li>`;
       }).join('');
 
       clientListEl.querySelectorAll('.client-item').forEach(item => {
-        item.addEventListener('click', () => showChat(Number(item.dataset.clientId)));
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.del-btn')) return; // don't open chat when deleting
+          showChat(Number(item.dataset.clientId));
+        });
+      });
+      clientListEl.querySelectorAll('.del-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = Number(btn.dataset.delId);
+          const cl = clients.find(c => c.id === id);
+          if (!confirm(`Delete ${cl ? cl.ref_id : 'this user'} and all their messages? This cannot be undone.`)) return;
+          try {
+            const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Delete failed');
+            clients = clients.filter(c => c.id !== id);
+            if (selectedClientId === id) selectedClientId = clients[0]?.id || null;
+            renderClients();
+            if (!chatView.classList.contains('hidden')) renderMessages();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
       });
     }
 
@@ -440,6 +481,22 @@
       }
     }
 
+    async function fetchStorageStatus() {
+      try {
+        const res = await fetch('/api/admin/storage-status');
+        const d = await res.json();
+        const note = document.getElementById('storageNote');
+        if (d.persistent) {
+          note.className = 'storage-note persistent';
+          note.textContent = '✓ Users & chats are saved permanently (Redis connected).';
+        } else {
+          note.className = 'storage-note temp';
+          note.textContent = '⚠ Not durable yet — link Upstash Redis in Vercel to save users permanently.';
+        }
+        note.style.display = 'block';
+      } catch (e) { /* ignore */ }
+    }
+
     async function sendReply() {
       if (!selectedClientId) { alert('Select a client first.'); return; }
       const input = document.getElementById('replyInput');
@@ -463,6 +520,7 @@
         adminFileInput.value = '';
         updateAdminAttachBadge();
         await fetchClients();
+        fetchStorageStatus();
         setChatStatus('Sent');
       } catch (error) {
         setChatStatus('Failed', true);
@@ -488,6 +546,7 @@
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Seed failed');
         await fetchClients();
+        fetchStorageStatus();
         selectedClientId = clients[0]?.id || null;
         renderClients();
         renderMessages();
@@ -534,6 +593,7 @@
           loginOverlay.classList.add('hidden');
           phone.classList.remove('hidden');
           fetchClients();
+          fetchStorageStatus();
         } else {
           loginOverlay.classList.remove('hidden');
           phone.classList.add('hidden');
@@ -560,6 +620,7 @@
           loginOverlay.classList.add('hidden');
           phone.classList.remove('hidden');
           fetchClients();
+          fetchStorageStatus();
         } else {
           loginError.textContent = data.error || 'Invalid password';
         }

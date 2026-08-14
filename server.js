@@ -279,6 +279,28 @@ app.get('/api/admin/seed-demo', requireAdmin, async (req, res) => {
   return res.json({ success: true, client: demoClient });
 });
 
+// Delete a client (and all their messages) permanently.
+app.delete('/api/admin/clients/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  const state = await store.getState();
+  const idx = state.clients.findIndex(c => c.id === id);
+  if (idx === -1) {
+    return res.status(404).json({ success: false, error: 'Client not found' });
+  }
+  const [removed] = state.clients.splice(idx, 1);
+  await store.saveState(state);
+  return res.json({ success: true, removed_id: removed.id });
+});
+
+// Storage status — tells the admin whether data is durable (Redis) or temporary.
+app.get('/api/admin/storage-status', requireAdmin, (req, res) => {
+  res.json({
+    success: true,
+    persistent: !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+    blob: !!process.env.BLOB_READ_WRITE_TOKEN
+  });
+});
+
 // --- Client (widget) endpoints (public) -----------------------------------
 app.post('/api/register-client', async (req, res) => {
   const { helpry_id, country } = req.body || {};

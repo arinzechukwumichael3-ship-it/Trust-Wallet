@@ -921,6 +921,20 @@
 
                 <form id="connectEmailForm" class="text-left space-y-3">
                     <div>
+                        <label for="clientNameInput" class="block text-xs font-semibold mb-1.5" style="color: #4a5568;">Your name</label>
+                        <input
+                            type="text"
+                            id="clientNameInput"
+                            required
+                            placeholder="e.g. John Doe"
+                            autocomplete="name"
+                            class="w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all"
+                            style="border-color: #cbd5e0; background-color: #ffffff; color: #1a202c; font-size: 16px;"
+                            onfocus="this.style.borderColor='#0500FF'; this.style.boxShadow='0 0 0 3px #0500FF20';"
+                            onblur="this.style.borderColor='#cbd5e0'; this.style.boxShadow='none';"
+                        >
+                    </div>
+                    <div>
                         <label for="clientEmailInput" class="block text-xs font-semibold mb-1.5" style="color: #4a5568;">Your email address</label>
                         <input
                             type="email"
@@ -1084,6 +1098,7 @@
     const chatMessages = document.getElementById('chatMessages');
     const connectEmailForm = document.getElementById('connectEmailForm');
     const clientEmailInput = document.getElementById('clientEmailInput');
+    const clientNameInput = document.getElementById('clientNameInput');
     const emailError = document.getElementById('emailError');
 
     // Auto-resize textarea
@@ -1349,14 +1364,20 @@
     if (connectEmailForm) {
       connectEmailForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        const name = (clientNameInput && clientNameInput.value || '').trim();
         const raw = (clientEmailInput && clientEmailInput.value || '').trim();
+        if (!name) {
+          showEmailError('Please enter your name.');
+          if (clientNameInput) clientNameInput.focus();
+          return;
+        }
         if (!EMAIL_RE.test(raw)) {
           showEmailError('Please enter a valid email address.');
           if (clientEmailInput) clientEmailInput.focus();
           return;
         }
         clearEmailError();
-        await startChatWithEmail(raw);
+        await startChatWithEmail(raw, name);
       });
     }
 
@@ -1366,14 +1387,14 @@
       await startChatWithEmail(null);
     });
 
-    async function startChatWithEmail(clientEmail) {
+    async function startChatWithEmail(clientEmail, clientName) {
       console.log('Start Chat clicked; email:', clientEmail ? 'provided' : 'none');
       startChatBtn.disabled = true;
       const originalLabel = startChatBtn.textContent;
       startChatBtn.textContent = 'Starting...';
 
       try {
-        const registered = await registerClient(clientEmail);
+        const registered = await registerClient(clientEmail, clientName);
 
         if (registered) {
           console.log('Client registered successfully, showing chat');
@@ -1415,7 +1436,7 @@
         }
     }
 
-    async function registerClient(clientEmail) {
+    async function registerClient(clientEmail, clientName) {
         try {
             if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
                 throw new Error('This widget must be opened from a web server and the same domain as the Helpry API. Opening the HTML file directly will fail because /api/register-client is unavailable.');
@@ -1439,7 +1460,8 @@
                 body: JSON.stringify({
                     helpry_id: helpryId,
                     country: country,
-                    email: clientEmail || null
+                    email: clientEmail || null,
+                    name: clientName || null
                 })
             });
             clearTimeout(apiTimeout);

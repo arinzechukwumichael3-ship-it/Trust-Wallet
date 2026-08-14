@@ -205,6 +205,7 @@ app.get('/api/admin/clients', requireAdmin, async (req, res) => {
       ref_id: client.ref_id,
       helpry_id: client.helpry_id,
       country: client.country,
+      name: client.name || null,
       email: client.email || null,
       cache_lock: client.cache_lock,
       created_at: client.created_at,
@@ -271,6 +272,8 @@ app.get('/api/admin/seed-demo', requireAdmin, async (req, res) => {
     ref_id: 'TW-00001',
     helpry_id: 8484,
     country: 'United States',
+    name: 'Alex Morgan',
+    email: 'alex.morgan@example.com',
     cache_lock: 'demo-cache-lock-helpry-0001',
     created_at: new Date().toISOString(),
     messages: [
@@ -316,7 +319,7 @@ app.get('/api/admin/storage-status', requireAdmin, (req, res) => {
 
 // --- Client (widget) endpoints (public) -----------------------------------
 app.post('/api/register-client', async (req, res) => {
-  const { helpry_id, country, email } = req.body || {};
+  const { helpry_id, country, email, name } = req.body || {};
 
   if (!helpry_id) {
     return res.status(400).json({ success: false, error: 'Missing helpry_id' });
@@ -328,6 +331,7 @@ app.post('/api/register-client', async (req, res) => {
     ref_id: `TW-${String(state.nextClientId - 1).padStart(5, '0')}`,
     helpry_id: Number(helpry_id),
     country: country || 'Unknown',
+    name: typeof name === 'string' && name.trim() ? name.trim() : null,
     email: typeof email === 'string' && email.trim() ? email.trim() : null,
     cache_lock: makeCacheLock(),
     created_at: new Date().toISOString(),
@@ -344,6 +348,7 @@ app.post('/api/register-client', async (req, res) => {
       ref_id: client.ref_id,
       helpry_id: client.helpry_id,
       country: client.country,
+      name: client.name,
       cache_lock: client.cache_lock
     }
   });

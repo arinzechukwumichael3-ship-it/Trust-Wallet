@@ -133,15 +133,26 @@
     .client-item.active { background: #eef0ff; }
 
     .avatar {
+      position: relative;
       flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 1.05rem; color: #fff;
       background: linear-gradient(135deg, #0500ff, #00d395);
     }
+    .online-dot {
+      position: absolute; right: 0; bottom: 0;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: #cbd5e0; border: 2.5px solid #fff;
+    }
+    .online-dot.on { background: var(--success); }
     .row-main { flex: 1; min-width: 0; }
     .row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-    .row-name { font-weight: 500; font-size: 0.95rem; color: var(--text); }
+    .row-name { font-weight: 600; font-size: 0.97rem; color: var(--text); }
     .row-time { font-size: 0.72rem; color: var(--muted); flex: 0 0 auto; }
+    .row-meta {
+      margin-top: 1px; font-size: 0.74rem; color: var(--primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .row-preview {
       margin-top: 3px; font-size: 0.83rem; color: var(--muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -149,6 +160,25 @@
     .row-email {
       margin-top: 2px; font-size: 0.72rem; color: var(--primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* Search box */
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      margin: 8px 12px; padding: 0 12px;
+      background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    }
+    .search-ico { width: 18px; height: 18px; color: var(--muted); flex: 0 0 auto; }
+    .search-input {
+      flex: 1; border: 0; outline: none; background: transparent;
+      padding: 11px 0; font-size: 0.9rem; font-family: inherit; color: var(--text);
+    }
+    .search-input::placeholder { color: #aab2bd; }
+    /* Chat header avatar */
+    .chat-avatar {
+      flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.95rem; color: #fff;
+      background: linear-gradient(135deg, #0500ff, #00d395);
     }
     .badge {
       flex: 0 0 auto; min-width: 22px; height: 22px; padding: 0 6px;
@@ -323,6 +353,10 @@
         </button>
       </header>
       <div id="storageNote" class="storage-note" style="display:none;"></div>
+      <div class="search-wrap">
+        <svg class="search-ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="searchInput" class="search-input" type="search" placeholder="Search name, email or ID…" autocomplete="off" />
+      </div>
       <div class="list-scroll">
         <ul id="clientList" class="client-list"></ul>
       </div>
@@ -334,6 +368,7 @@
         <button id="backBtn" class="icon-btn" aria-label="Back">
           <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+        <div id="chatAvatar" class="chat-avatar">TW</div>
         <div style="flex:1; min-width:0;">
           <div class="title" id="chatTitle">Client</div>
           <div class="sub" id="chatSub">Loading…</div>
@@ -438,37 +473,50 @@
         } catch (e) {}
       }
     }
-    function initials(ref) {
+    function initials(ref, name) {
+      if (name && name.trim()) {
+        const parts = name.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('');
+        if (parts) return parts.toUpperCase();
+      }
       return (ref || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'TW';
     }
 
     function renderClients() {
-      if (!clients.length) {
-        clientListEl.innerHTML = '<li class="empty">No clients yet.<br>Tap the ✦ button to seed a demo conversation.</li>';
+      const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+      const filtered = clients.filter(c => {
+        if (!q) return true;
+        const hay = [c.name, c.email, c.ref_id, c.country].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      if (!filtered.length) {
+        clientListEl.innerHTML = clients.length
+          ? '<li class="empty">No clients match your search.</li>'
+          : '<li class="empty">No clients yet.<br>Tap the ✦ button to seed a demo conversation.</li>';
         return;
       }
-      clientListEl.innerHTML = clients.map(client => {
+      clientListEl.innerHTML = filtered.map(client => {
         const last = lastMessage(client);
         const preview = last
           ? (last.sender_type === 'admin' ? 'You: ' : '') + (last.message || '(image)')
           : 'No messages yet';
+        const name = client.name || 'Unnamed visitor';
+        const unread = unreadCounts[client.id] || 0;
+        const online = !!client.email; // connected (has email) => reachable
         return `
           <li class="client-item ${selectedClientId === client.id ? 'active' : ''}" data-client-id="${client.id}">
-            <div class="avatar">${initials(client.ref_id)}</div>
+            <div class="avatar">${initials(client.ref_id, client.name)}<span class="online-dot ${online ? 'on' : ''}"></span></div>
             <div class="row-main">
               <div class="row-top">
-                <span class="row-name">${client.ref_id}</span>
+                <span class="row-name">${escapeHtml(name)}</span>
                 <span class="row-time">${last ? formatTime(last.created_at) : ''}</span>
               </div>
-              <div class="row-preview">${preview}</div>
-              <div class="row-email">${client.email ? escapeHtml(client.email) : '<span style="color:#cbd5e0;">no email connected</span>'}</div>
+              <div class="row-meta">${escapeHtml(client.ref_id)}${client.email ? ' · ' + escapeHtml(client.email) : ''}</div>
+              <div class="row-preview">${escapeHtml(preview)}</div>
             </div>
+            ${unread > 0 ? `<div class="badge unread">${unread > 99 ? '99+' : unread}</div>` : ''}
             <button class="del-btn" data-del-id="${client.id}" title="Delete user" aria-label="Delete user">
               <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M10 11v6M14 11v6"></path></svg>
             </button>
-            ${(unreadCounts[client.id] > 0)
-              ? `<div class="badge unread">${unreadCounts[client.id]}</div>`
-              : `<div class="badge">${client.messages.length}</div>`}
           </li>`;
       }).join('');
 
@@ -519,9 +567,14 @@
         messagesEl.innerHTML = '<div class="empty">No client selected.</div>';
         return;
       }
-      document.getElementById('chatTitle').textContent = selected.ref_id;
-      const emailPart = selected.email ? ` · ${selected.email}` : '';
-      document.getElementById('chatSub').textContent = `${selected.country || 'Unknown'} · ${selected.helpry_id}${emailPart}`;
+      document.getElementById('chatTitle').textContent = selected.name || 'Unnamed visitor';
+      const bits = [];
+      if (selected.email) bits.push(selected.email);
+      bits.push(selected.ref_id);
+      if (selected.country && selected.country !== 'Unknown') bits.push(selected.country);
+      document.getElementById('chatSub').textContent = bits.join('  ·  ');
+      const av = document.getElementById('chatAvatar');
+      if (av) av.textContent = initials(selected.ref_id, selected.name);
 
       if (!selected.messages.length) {
         messagesEl.innerHTML = '<div class="empty">No messages yet. Say hello 👋</div>';
@@ -773,6 +826,12 @@
         loginError.textContent = 'Login failed. Try again.';
       }
     });
+
+    // Live search filter on the conversations list.
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => renderClients());
+    }
 
     async function logout() {
       try { await fetch('/api/admin/logout', { method: 'POST' }); } catch (e) {}

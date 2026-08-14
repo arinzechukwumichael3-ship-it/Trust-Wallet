@@ -256,6 +256,17 @@
       font-size: 0.62rem; font-weight: 700; line-height: 18px; text-align: center;
       box-shadow: 0 0 0 2px var(--surface);
     }
+    .attach-preview {
+      display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0;
+    }
+    .atch-chip {
+      display: flex; align-items: center; gap: 6px; max-width: 160px;
+      background: #eef2ff; border: 1px solid #dbe2ff; border-radius: 10px;
+      padding: 4px 8px; font-size: 0.78rem; color: #334155;
+    }
+    .atch-chip img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex: 0 0 auto; }
+    .atch-chip .fic { font-size: 1.1rem; flex: 0 0 auto; }
+    .atch-chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .send-btn {
       flex: 0 0 auto; width: 46px; height: 46px; border: 0; border-radius: 50%;
       background: var(--primary); color: #fff; cursor: pointer;
@@ -331,12 +342,13 @@
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span id="adminAttachBadge" class="attach-badge" style="display:none;"></span>
         </button>
-        <input type="file" id="adminFileInput" accept="image/*,application/pdf,text/*,application/msword,application/vnd.openxmlformats-officedocument.*" multiple class="hidden" />
+        <input type="file" id="adminFileInput" accept="*/*" multiple class="hidden" />
         <textarea id="replyInput" rows="1" placeholder="Message the client…"></textarea>
         <button id="sendReplyBtn" class="send-btn" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M3 20.5l18-8.5-18-8.5 0 6.5 12 2-12 2z"/></svg>
         </button>
       </div>
+      <div id="adminAttachPreview" class="attach-preview" style="display:none;"></div>
     </section>
   </div>
 
@@ -645,10 +657,23 @@
 
     function updateAdminAttachBadge() {
       const badge = document.getElementById('adminAttachBadge');
-      const n = adminFileInput.files ? adminFileInput.files.length : 0;
+      const preview = document.getElementById('adminAttachPreview');
+      const files = adminFileInput.files ? Array.from(adminFileInput.files) : [];
+      const n = files.length;
       if (badge) {
         badge.textContent = n ? String(n) : '';
         badge.style.display = n ? 'block' : 'none';
+      }
+      if (preview) {
+        if (n === 0) { preview.style.display = 'none'; preview.innerHTML = ''; return; }
+        preview.style.display = 'flex';
+        preview.innerHTML = files.map((f, i) => {
+          const isImg = f.type.startsWith('image/');
+          const thumb = isImg
+            ? `<img src="${URL.createObjectURL(f)}" alt="">`
+            : `<span class="fic">📎</span>`;
+          return `<div class="atch-chip">${thumb}<span class="nm">${escapeHtml(f.name)}</span></div>`;
+        }).join('');
       }
     }
 

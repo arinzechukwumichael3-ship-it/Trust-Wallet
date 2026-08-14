@@ -1209,6 +1209,18 @@
 
     // Stable localStorage key — uses helpryId so session survives code rotation
     const sessionKey = `cache_lock_helpry_${helpryId}`;
+    const messagesKey = (lock) => `helpry_messages_${lock || helpryId}`;
+
+    function loadLocalMessages(lock) {
+      try {
+        const raw = localStorage.getItem(messagesKey(lock));
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }
+    }
+    function saveLocalMessages(lock, msgs) {
+      try { localStorage.setItem(messagesKey(lock), JSON.stringify(msgs)); } catch (e) {}
+    }
 
     function getSessionCacheLock() {
         // Try the stable key first
@@ -1558,44 +1570,53 @@
             const data = await response.json();
 
             if (data.success) {
-                const newMessages = data.messages;
-                const hasNewMessages = newMessages.length > clientMessagesCache.length ||
-                    (newMessages.length > 0 && clientMessagesCache.length > 0 &&
-                     newMessages[newMessages.length - 1].id !== clientMessagesCache[clientMessagesCache.length - 1]?.id);
-                const hasDeletedMessages = newMessages.length < clientMessagesCache.length;
+                const newMessages = data.messages || [];
 
-                let hasUpdatedMessages = false;
-                if (!hasNewMessages && !hasDeletedMessages && newMessages.length === clientMessagesCache.length) {
-                    for (let i = 0; i < newMessages.length; i++) {
-                        if (newMessages[i].message !== clientMessagesCache[i]?.message) {
-                            hasUpdatedMessages = true;
-                            break;
-                        }
-                    }
-                }
+                if (forceRender) {
+                    // Full re-render. Merge server messages with locally-saved copies
+                    // (localStorage) so a server cold-start that returns an empty list
+                    // does NOT wipe the user's visible conversation.
+                    const local = loadLocalMessages(getSessionCacheLock());
+                    const byId = new Map();
+                    newMessages.forEach(m => byId.set(m.id, m));
+                    local.forEach(m => { if (!byId.has(m.id)) byId.set(m.id, m); });
+                    const merged = Array.from(byId.values()).sort(
+                        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
+                    );
 
-                if (forceRender || hasNewMessages || hasDeletedMessages || hasUpdatedMessages || clientMessagesCache.length === 0) {
-                    const wasAtBottom = chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 50;
-                    const welcomeMsg = chatContent.cloneNode(true);
                     const currentContent = chatMessages.querySelector('#chatContent');
                     if (currentContent) {
                         chatMessages.removeChild(currentContent);
                     }
-
                     lastSenderType = null;
-                    clientMessagesCache = newMessages;
-
-                    // Clear all message divs but keep the welcome content
+                    clientMessagesCache = merged;
+                    saveLocalMessages(getSessionCacheLock(), clientMessagesCache);
                     const messageDivs = chatMessages.querySelectorAll('[data-message-id]');
                     messageDivs.forEach(div => div.remove());
+                    merged.forEach(msg => renderMessage(msg));
+                    setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 0);
+                    return;
+                }
 
-                    newMessages.forEach(msg => renderMessage(msg));
-
-                    if (wasAtBottom || forceRender) {
-                        setTimeout(() => {
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                        }, 0);
+                // Polling: APPEND-ONLY. Never remove messages the server no longer
+                // returns — on Vercel the state can reset on a cold start, and we must
+                // not wipe the user's locally-visible conversation. Only add messages
+                // we haven't rendered yet (by id).
+                const knownIds = new Set(clientMessagesCache.map(m => m.id));
+                const appended = [];
+                for (const m of newMessages) {
+                    if (!knownIds.has(m.id)) {
+                        clientMessagesCache.push(m);
+                        appended.push(m);
                     }
+                }
+                if (appended.length) {
+                    const wasAtBottom = chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 50;
+                    appended.forEach(msg => renderMessage(msg));
+                    if (wasAtBottom) {
+                        setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 0);
+                    }
+                    saveLocalMessages(getSessionCacheLock(), clientMessagesCache);
                 }
             }
         } catch (error) {
@@ -1680,7 +1701,9 @@
         updateImagePreview();
 
         const tempImageUrls = imagesToSend.map(f => URL.createObjectURL(f));
+        const tempId = 'temp-' + Date.now();
         const tempMsg = {
+            id: tempId,
             sender_type: 'client',
             message: message,
             image_urls: tempImageUrls,
@@ -1688,6 +1711,10 @@
         };
         renderMessage(tempMsg);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Persist optimistically so it survives a server cold-start before confirmation
+        const lock = getSessionCacheLock();
+        clientMessagesCache.push(tempMsg);
+        saveLocalMessages(lock, clientMessagesCache);
 
         try {
             const formData = new FormData();
@@ -1721,6 +1748,12 @@
             if (!data.success) {
                 console.error('Failed to send message:', data.error);
             } else {
+                // Reconcile: replace the optimistic temp message with the server's real one
+                const serverMsg = data.message;
+                const idx = clientMessagesCache.findIndex(m => m.id === tempId);
+                if (idx !== -1) clientMessagesCache[idx] = serverMsg;
+                else clientMessagesCache.push(serverMsg);
+                saveLocalMessages(lock, clientMessagesCache);
                 fetchMessages();
             }
         } catch (error) {

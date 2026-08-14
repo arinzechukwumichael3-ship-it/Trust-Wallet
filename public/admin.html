@@ -84,6 +84,11 @@
       z-index: 5;
     }
     .appbar .title { font-size: 1.05rem; font-weight: 500; flex: 1; line-height: 1.1; }
+    .appbar .title-unread {
+      display: inline-block; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px;
+      border-radius: 10px; background: #ff3b30; color: #fff; font-size: 0.72rem; font-weight: 700;
+      text-align: center; line-height: 20px; vertical-align: middle;
+    }
     .appbar .sub { font-size: 0.72rem; font-weight: 400; opacity: 0.9; margin-top: 2px; }
     .appbar .icon-btn {
       width: 40px; height: 40px;
@@ -291,7 +296,7 @@
     <section id="listView" class="view">
       <header class="appbar">
         <div style="flex:1; min-width:0;">
-          <div class="title">Helpry Admin</div>
+          <div class="title">Helpry Admin <span id="totalUnread" class="title-unread" style="display:none;"></span></div>
           <div class="sub">Trust Wallet support</div>
         </div>
         <div id="listStatus" class="status-dot"><span class="pulse"></span><span id="listStatusText">Connecting</span></div>
@@ -475,6 +480,20 @@
           }
         });
       });
+
+      // Total unread badge in the title bar
+      const totalUnread = clients.reduce((sum, c) => sum + (unreadCounts[c.id] || 0), 0);
+      const tu = document.getElementById('totalUnread');
+      if (tu) {
+        if (totalUnread > 0) {
+          tu.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
+          tu.style.display = 'inline-block';
+          document.title = `(${totalUnread}) Helpry Admin`;
+        } else {
+          tu.style.display = 'none';
+          document.title = 'Helpry Admin';
+        }
+      }
     }
 
     function renderMessages() {

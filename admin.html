@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helpry Admin</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-2: #1f2937;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --primary: #0500ff;
+        --border: rgba(255,255,255,0.12);
+        --success: #10b981;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(135deg, #0f172a, #111827 42%, #1e293b);
+        color: var(--text);
+      }
+
+      .app {
+        max-width: 1200px;
+        margin: 32px auto;
+        padding: 20px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .brand {
+        font-size: 1.8rem;
+        font-weight: 700;
+      }
+
+      .status {
+        color: var(--success);
+        font-size: 0.88rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: rgba(16, 185, 129, 0.08);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 20px;
+      }
+
+      .panel {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      }
+
+      .client-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .client-item {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(31,41,55,0.8);
+        padding: 12px;
+        cursor: pointer;
+      }
+
+      .client-item.active {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 1px rgba(5, 0, 255, 0.45);
+      }
+
+      .client-name {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .chat-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .messages {
+        min-height: 360px;
+        max-height: 520px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.7);
+        padding: 14px;
+      }
+
+      .message {
+        margin-bottom: 12px;
+        display: flex;
+      }
+
+      .message.client {
+        justify-content: flex-end;
+      }
+
+      .bubble {
+        max-width: 75%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .message.client .bubble {
+        background: var(--primary);
+        color: white;
+      }
+
+      .message.admin .bubble {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .composer {
+        display: flex;
+        gap: 12px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 80px;
+        resize: vertical;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.7);
+        color: var(--text);
+        padding: 12px 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 12px;
+        background: var(--primary);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: rgba(148, 163, 184, 0.2);
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        gap: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">Helpry Admin</div>
+        <div class="status" id="statusText">Connected</div>
+      </div>
+
+      <div class="layout">
+        <aside class="panel">
+          <div class="toolbar">
+            <strong>Clients</strong>
+            <button id="seedDemoBtn" class="secondary" type="button">Seed demo</button>
+          </div>
+          <ul id="clientList" class="client-list"></ul>
+        </aside>
+
+        <main class="panel chat-panel">
+          <div id="chatHeader" class="muted">Select a client to view the conversation.</div>
+          <div id="messages" class="messages"></div>
+          <div class="composer">
+            <textarea id="replyInput" placeholder="Type a message to the client..."></textarea>
+            <button id="sendReplyBtn" type="button">Send reply</button>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      let clients = [];
+      let selectedClientId = null;
+
+      function setStatus(text) {
+        document.getElementById('statusText').textContent = text;
+      }
+
+      function formatTime(value) {
+        if (!value) return '';
+        return new Date(value).toLocaleString();
+      }
+
+      function renderClients() {
+        const list = document.getElementById('clientList');
+        if (!clients.length) {
+          list.innerHTML = '<li class="muted">No clients yet.</li>';
+          return;
+        }
+
+        list.innerHTML = clients.map(client => `
+          <li class="client-item ${selectedClientId === client.id ? 'active' : ''}" data-client-id="${client.id}">
+            <div class="client-name">
+              <span>${client.ref_id}</span>
+              <span class="muted">${client.messages.length}</span>
+            </div>
+            <div class="muted">${client.country || 'Unknown'} · ${client.helpry_id}</div>
+          </li>
+        `).join('');
+
+        document.querySelectorAll('.client-item').forEach(item => {
+          item.addEventListener('click', () => {
+            selectedClientId = Number(item.dataset.clientId);
+            renderClients();
+            renderMessages();
+          });
+        });
+      }
+
+      function renderMessages() {
+        const messagesEl = document.getElementById('messages');
+        const headerEl = document.getElementById('chatHeader');
+
+        const selectedClient = clients.find(c => c.id === selectedClientId);
+        if (!selectedClient) {
+          messagesEl.innerHTML = '<div class="muted">No client selected.</div>';
+          headerEl.textContent = 'Select a client to view the conversation.';
+          return;
+        }
+
+        headerEl.textContent = `${selectedClient.ref_id} · ${selectedClient.country} · ${selectedClient.helpry_id}`;
+
+        if (!selectedClient.messages.length) {
+          messagesEl.innerHTML = '<div class="muted">No messages yet.</div>';
+          return;
+        }
+
+        messagesEl.innerHTML = selectedClient.messages.map(msg => `
+          <div class="message ${msg.sender_type === 'client' ? 'client' : 'admin'}">
+            <div class="bubble">
+              ${msg.message || '(image)'}
+              <div class="muted" style="margin-top: 6px; font-size: 11px; color: rgba(0,0,0,0.7);">${formatTime(msg.created_at)}</div>
+            </div>
+          </div>
+        `).join('');
+
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function fetchClients() {
+        try {
+          const response = await fetch('/api/admin/clients');
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Could not load clients');
+          }
+
+          clients = data.clients || [];
+          if (!selectedClientId && clients.length) {
+            selectedClientId = clients[0].id;
+          }
+
+          renderClients();
+          renderMessages();
+          setStatus('Connected');
+        } catch (error) {
+          setStatus('Error');
+          console.error(error);
+        }
+      }
+
+      async function sendReply() {
+        if (!selectedClientId) {
+          alert('Select a client first.');
+          return;
+        }
+
+        const text = document.getElementById('replyInput').value.trim();
+        if (!text) {
+          alert('Type a reply before sending.');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/admin/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: selectedClientId, message: text })
+          });
+
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Reply failed');
+          }
+
+          document.getElementById('replyInput').value = '';
+          await fetchClients();
+          setStatus('Reply sent');
+        } catch (error) {
+          setStatus('Send failed');
+          console.error(error);
+          alert(error.message);
+        }
+      }
+
+      async function seedDemo() {
+        try {
+          const response = await fetch('/api/admin/seed-demo');
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Seed failed');
+          }
+
+          await fetchClients();
+          selectedClientId = clients[0]?.id || null;
+          renderClients();
+          renderMessages();
+          setStatus('Demo seeded');
+        } catch (error) {
+          console.error(error);
+          alert(error.message);
+        }
+      }
+
+      document.getElementById('sendReplyBtn').addEventListener('click', sendReply);
+      document.getElementById('seedDemoBtn').addEventListener('click', seedDemo);
+      fetchClients();
+      setInterval(fetchClients, 5000);
+    </script>
+  </body>
+</html>

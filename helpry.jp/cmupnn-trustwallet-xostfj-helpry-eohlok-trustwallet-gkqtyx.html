@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="iXz9sG79ZXo9JjPa7sVEraxKw0VRvAaw1z8sPbkQ">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="https://trustwallet.com/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'trust': '#0500FF',
+                        'trust-dark': '#0400CC',
+                        'trust-light': '#3B82F6',
+                        'trust-accent': '#00D395',
+                        'trust-purple': '#7C3AED',
+                        'trust-bg': '#F8FAFC',
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="search"],
+        textarea,
+        select {
+            font-size: 16px !important;
+        }
+
+        #chatMessages {
+            scroll-behavior: smooth;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        body.chat-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Animated gradient background */
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #0500FF 50%, #00D395 75%, #667eea 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glass morphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Card hover effects */
+        .card-hover {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px -12px rgba(5, 0, 255, 0.15);
+        }
+
+        /* Topic card effects */
+        .topic-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .topic-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(5, 0, 255, 0.05) 0%, rgba(0, 211, 149, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .topic-card:hover::before {
+            opacity: 1;
+        }
+
+        .topic-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Floating animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .float-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Shimmer effect */
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Stats counter animation */
+        .stat-number {
+            background: linear-gradient(135deg, #0500FF 0%, #00D395 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-900">
+    <!-- Header with Glass Effect -->
+    <header class="fixed top-0 left-0 right-0 z-50 glass border-b border-gray-100/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-18 py-4">
+                <!-- Logo -->
+                <a href="#" onclick="openChatWidget(); return false;" class="flex items-center group">
+                    <img src="https://helpry.jp/storage/app/public/platforms/trustlogo.svg" alt="Trust" class="h-8 w-auto transition-transform group-hover:scale-105">
+                </a>
+
+                <!-- Navigation -->
+                <nav class="hidden lg:flex items-center gap-10">
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-sm font-medium text-gray-700 hover:text-trust transition-colors relative group">
+                        How it works
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-trust transition-all group-hover:w-full"></span>
+                    </a>
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-sm font-medium text-gray-700 hover:text-trust transition-colors relative group">
+                        Articles
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-trust transition-all group-hover:w-full"></span>
+                    </a>
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-sm font-medium text-gray-700 hover:text-trust transition-colors relative group">
+                        Topics
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-trust transition-all group-hover:w-full"></span>
+                    </a>
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-sm font-medium text-gray-700 hover:text-trust transition-colors relative group">
+                        Blog
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-trust transition-all group-hover:w-full"></span>
+                    </a>
+                </nav>
+
+                <!-- Auth Buttons -->
+                <div class="flex items-center gap-4">
+                    <a href="#" onclick="openChatWidget(); return false;" class="hidden xl:flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-trust transition-colors">
+                        <span>Priority Support</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                        </svg>
+                    </a>
+                    <a href="#" onclick="openChatWidget(); return false;" class="group relative px-6 py-2.5 text-sm font-semibold bg-trust text-white rounded-full overflow-hidden transition-all hover:shadow-lg hover:shadow-trust/30">
+                        <span class="relative z-10 flex items-center gap-2">
+                            Connect Wallet
+                            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-trust-dark to-trust-purple opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section with Animated Gradient -->
+    <section class="relative min-h-[85vh] flex items-center hero-gradient overflow-hidden pt-20">
+        <!-- Floating Elements -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute top-1/4 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl float-animation"></div>
+            <div class="absolute bottom-1/4 right-10 w-96 h-96 bg-trust-accent/20 rounded-full blur-3xl float-animation" style="animation-delay: -3s;"></div>
+            <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-trust-purple/20 rounded-full blur-3xl float-animation" style="animation-delay: -1.5s;"></div>
+        </div>
+
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div class="text-white">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8 border border-white/20">
+                        <span class="w-2 h-2 bg-trust-accent rounded-full animate-pulse"></span>
+                        <span class="text-sm font-medium">24/7 Support Available</span>
+                    </div>
+                    <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
+                        How can we<br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-trust-accent to-white">help you?</span>
+                    </h1>
+                    <p class="text-xl text-white/80 mb-10 max-w-lg">
+                        Get instant answers to your questions or connect with our expert support team for personalized assistance.
+                    </p>
+
+                    <!-- Search Bar -->
+                    <div class="relative max-w-xl">
+                        <div class="absolute inset-0 bg-white/20 rounded-2xl blur-xl"></div>
+                        <div class="relative flex items-center">
+                            <input type="text" placeholder="Search for help articles, FAQs..." class="w-full pl-6 pr-32 py-5 text-base bg-white/95 backdrop-blur-sm text-gray-900 placeholder-gray-400 rounded-2xl border-0 focus:outline-none focus:ring-4 focus:ring-trust/30 shadow-2xl transition">
+                            <button class="absolute right-2 px-6 py-3 bg-trust hover:bg-trust-dark text-white font-semibold rounded-xl transition-all hover:shadow-lg flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <span class="hidden sm:inline">Search</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="flex flex-wrap gap-8 mt-12">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold">10M+</div>
+                            <div class="text-sm text-white/70">Users Helped</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold">&lt;2min</div>
+                            <div class="text-sm text-white/70">Avg Response</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold">98%</div>
+                            <div class="text-sm text-white/70">Satisfaction</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hidden lg:flex justify-center">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gradient-to-br from-trust-accent/30 to-trust-purple/30 rounded-full blur-3xl"></div>
+                        <img src="https://helpry.jp/storage/app/public/platforms/trustwallet-hero.svg" alt="Support" class="relative w-96 h-auto float-animation">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 scroll-indicator">
+            <svg class="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Support Options -->
+    <section class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Choose Your Support Path</h2>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">Get the help you need, the way you prefer. Premium support for TWT holders or free assistance for everyone.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <!-- Priority Support Card -->
+                <div class="relative group card-hover">
+                    <div class="absolute inset-0 bg-gradient-to-br from-trust via-trust-purple to-trust-accent rounded-3xl opacity-90"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-trust via-trust-purple to-trust-accent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+                    <div class="relative p-8 lg:p-10 text-white rounded-3xl overflow-hidden">
+                        <!-- Badge -->
+                        <div class="absolute top-6 right-6">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold border border-white/30">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                </svg>
+                                Premium
+                            </span>
+                        </div>
+
+                        <div class="mb-6">
+                            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-white/70 text-sm mb-2">Jump the queue</p>
+                            <h3 class="text-3xl font-bold mb-2">Priority Support</h3>
+                            <p class="text-white/80">Get expedited responses within minutes. Exclusive for TWT holders with 50+ locked tokens.</p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <a href="#" onclick="openChatWidget(); return false;" class="px-6 py-3 bg-white text-trust font-semibold rounded-xl hover:bg-gray-100 transition flex items-center gap-2 group/btn">
+                                Connect Wallet
+                                <svg class="w-4 h-4 transition-transform group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                </svg>
+                            </a>
+                            <a href="#" onclick="openChatWidget(); return false;" class="px-6 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition border border-white/30">
+                                Learn more
+                            </a>
+                        </div>
+
+                        <!-- Decorative elements -->
+                        <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    </div>
+                </div>
+
+                <!-- Free Support Card -->
+                <div class="relative group card-hover bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-trust via-trust-accent to-trust-purple"></div>
+                    <div class="p-8 lg:p-10">
+                        <div class="mb-6">
+                            <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-500 text-sm mb-2">Response within 72 hours</p>
+                            <h3 class="text-3xl font-bold text-gray-900 mb-2">Free Support</h3>
+                            <p class="text-gray-600">Get help from our AI-powered chatbot or submit a ticket to our support team.</p>
+                        </div>
+
+                        <button onclick="openChatWidget()" class="px-6 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition flex items-center gap-2 group/btn">
+                            Start Chat
+                            <svg class="w-4 h-4 transition-transform group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TWT Benefits Banner -->
+    <section class="py-6 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-gradient-to-r from-gray-50 to-blue-50 rounded-3xl p-8 border border-gray-100">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-trust/10 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-trust" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-gray-900">Exclusive to TWT holders</span>
+                                <span class="px-2 py-0.5 bg-trust/10 text-trust text-xs font-semibold rounded-full">Min 50 TWT</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Premium support and exclusive services</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-8">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-trust" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 text-sm">Express lane</p>
+                                <p class="text-xs text-gray-500">Priority assistance</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-trust-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 text-sm">AI Tools</p>
+                                <p class="text-xs text-gray-500">Smart diagnostics</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-trust-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 text-sm">More benefits</p>
+                                <p class="text-xs text-gray-500">Coming soon</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trending Topics -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between mb-12">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-900 mb-2">Trending Topics</h2>
+                    <p class="text-gray-600">Most searched questions this week</p>
+                </div>
+                <a href="#" onclick="openChatWidget(); return false;" class="hidden sm:flex items-center gap-2 text-trust font-semibold hover:gap-3 transition-all">
+                    View all
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-bank.svg" alt="Transfer" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">How to transfer funds to my bank account</h3>
+                    <p class="text-sm text-gray-500">Learn the step-by-step process</p>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-scam.svg" alt="Report Scam" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Report Scam & Fraud</h3>
+                    <p class="text-sm text-gray-500">Protect yourself and others</p>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-network.svg" alt="Wrong Network" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Send funds to the wrong network</h3>
+                    <p class="text-sm text-gray-500">Recovery options explained</p>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-key.svg" alt="Recovery" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Lost Recovery Phrase or Private Key</h3>
+                    <p class="text-sm text-gray-500">What you can do now</p>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-cyan-100 to-cyan-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-sell.svg" alt="Selling" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">What to do if Selling Crypto in-app Fails</h3>
+                    <p class="text-sm text-gray-500">Troubleshooting guide</p>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="topic-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <div class="w-16 h-16 bg-gradient-to-br from-violet-100 to-violet-50 rounded-2xl flex items-center justify-center mb-5">
+                        <img src="https://helpry.jp/storage/app/public/platforms/topics/trust-find.svg" alt="Missing Funds" class="w-10 h-10 object-contain">
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">How to Locate Missing Funds</h3>
+                    <p class="text-sm text-gray-500">Track your transactions</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Support Categories -->
+    <section class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Browse by Category</h2>
+                <p class="text-gray-600">Find help organized by topic</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-trust/10 rounded-xl flex items-center justify-center group-hover:bg-trust group-hover:text-white transition-colors">
+                            <svg class="w-7 h-7 text-trust group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-trust transition-colors">Getting Started</h3>
+                            <p class="text-sm text-gray-500">Setup and basics</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-trust group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-trust-accent/10 rounded-xl flex items-center justify-center group-hover:bg-trust-accent transition-colors">
+                            <svg class="w-7 h-7 text-trust-accent group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-trust-accent transition-colors">Buy & Sell Crypto</h3>
+                            <p class="text-sm text-gray-500">Trading and transactions</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-trust-accent group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-amber-500/10 rounded-xl flex items-center justify-center group-hover:bg-amber-500 transition-colors">
+                            <svg class="w-7 h-7 text-amber-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-amber-500 transition-colors">Staking & Rewards</h3>
+                            <p class="text-sm text-gray-500">Earn passive income</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-trust-purple/10 rounded-xl flex items-center justify-center group-hover:bg-trust-purple transition-colors">
+                            <svg class="w-7 h-7 text-trust-purple group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-trust-purple transition-colors">DeFi & dApps</h3>
+                            <p class="text-sm text-gray-500">Connect to Web3</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-trust-purple group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-emerald-500/10 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
+                            <svg class="w-7 h-7 text-emerald-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-emerald-500 transition-colors">Security</h3>
+                            <p class="text-sm text-gray-500">Keep your assets safe</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" onclick="openChatWidget(); return false;" class="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-trust/20 transition-all">
+                    <div class="flex items-start gap-4">
+                        <div class="w-14 h-14 bg-pink-500/10 rounded-xl flex items-center justify-center group-hover:bg-pink-500 transition-colors">
+                            <svg class="w-7 h-7 text-pink-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-pink-500 transition-colors">How-to Guides</h3>
+                            <p class="text-sm text-gray-500">Step-by-step tutorials</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- TWT Program CTA -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-10 lg:p-16">
+                <!-- Background Pattern -->
+                <div class="absolute inset-0 opacity-10">
+                    <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 80 80\"><circle cx=\"40\" cy=\"40\" r=\"1\" fill=\"white\"/></svg>'); background-size: 40px 40px;"></div>
+                </div>
+
+                <div class="relative flex flex-col lg:flex-row items-center gap-12">
+                    <div class="flex-1 text-center lg:text-left">
+                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-trust/20 rounded-full mb-6">
+                            <svg class="w-4 h-4 text-trust-accent" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-white">TWT Utility Program</span>
+                        </div>
+                        <h2 class="text-4xl lg:text-5xl font-bold text-white mb-6">
+                            Unlock Premium<br>
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-trust-accent to-trust">Benefits</span>
+                        </h2>
+                        <p class="text-gray-400 text-lg mb-8 max-w-lg">
+                            Hold at least 50 locked TWT to access priority support, exclusive features, and premium content. Join thousands of TWT holders enjoying VIP treatment.
+                        </p>
+                        <div class="flex flex-wrap justify-center lg:justify-start gap-4">
+                            <a href="#" onclick="openChatWidget(); return false;" class="px-8 py-4 bg-trust hover:bg-trust-dark text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-trust/30 flex items-center gap-2">
+                                Get Started
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                </svg>
+                            </a>
+                            <a href="#" onclick="openChatWidget(); return false;" class="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition border border-white/20">
+                                Learn More
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="relative">
+                            <div class="absolute inset-0 bg-gradient-to-br from-trust to-trust-accent rounded-full blur-3xl opacity-30"></div>
+                            <img src="https://helpry.jp/storage/app/public/platforms/twt-utility.svg" alt="TWT" class="relative w-72 h-auto float-animation">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white pt-20 pb-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-16">
+                <!-- Brand -->
+                <div class="col-span-2">
+                    <img src="https://helpry.jp/storage/app/public/platforms/trustlogo.svg" alt="Trust" class="h-8 w-auto mb-6">
+                    <p class="text-gray-400 mb-6 max-w-sm">The most trusted & secure crypto wallet. Store, send, and receive cryptocurrency with confidence.</p>
+                    <div class="flex items-center gap-3">
+                        <a href="#" onclick="openChatWidget(); return false;" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-trust transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </a>
+                        <a href="#" onclick="openChatWidget(); return false;" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-trust transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/></svg>
+                        </a>
+                        <a href="#" onclick="openChatWidget(); return false;" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-trust transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                        </a>
+                        <a href="#" onclick="openChatWidget(); return false;" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-trust transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Links -->
+                <div>
+                    <h4 class="font-semibold mb-4">Wallet</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Mobile App</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Browser Extension</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Desktop App</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold mb-4">Features</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Buy Crypto</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Swaps</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Staking</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">NFTs</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold mb-4">Support</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Help Center</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Contact Us</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Community</a></li>
+                        <li><a href="#" onclick="openChatWidget(); return false;" class="text-gray-400 hover:text-white transition">Blog</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom -->
+            <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                <p class="text-gray-500 text-sm">&copy; 2026 Trust Wallet. All rights reserved.</p>
+                <div class="flex items-center gap-6">
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-gray-500 hover:text-white text-sm transition">Privacy Policy</a>
+                    <a href="#" onclick="openChatWidget(); return false;" class="text-gray-500 hover:text-white text-sm transition">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    
+    <style>
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .message-enter {
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    .typing-indicator {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .typing-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #1f2937;
+        opacity: 0.6;
+        animation: pulse 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    .chat-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .chat-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .chat-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 3px;
+    }
+
+    .chat-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+
+    #chatButton {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    #chatWindow {
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .quick-reply-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .image-preview-hover:hover {
+        transform: scale(1.05);
+    }
+</style>
+
+<!-- Chat Notification Bubble -->
+<div id="helpry-chat-root">
+<div id="chatNotification" class="fixed bottom-[100px] right-6 z-50 opacity-0 translate-y-2 pointer-events-none transition-all duration-300">
+    <div class="relative rounded-2xl shadow-2xl cursor-pointer transition-all hover:shadow-3xl" style="max-width: 320px; background-color: #0500FF;" onmouseover="this.style.transform='translateY(-4px) scale(1.02)'; this.style.backgroundColor='#0400CC'" onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.backgroundColor='#0500FF'" onclick="openChatWidget(); hideChatNotification();">
+        <!-- Notification Content -->
+        <div class="flex items-start gap-3 p-4">
+            <!-- Platform Logo -->
+            <div class="flex-shrink-0">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-sm ring-2 ring-white/30">
+                    <img src="https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg" alt="Trust Wallet" class="w-full h-full object-contain rounded-full p-1">
+                </div>
+            </div>
+
+            <!-- Message Content -->
+            <div class="flex-1 min-w-0 pt-0.5">
+                <div class="flex items-center gap-2 mb-1">
+                    <p class="font-semibold text-sm" style="color: #FFFFFF;">Trust Wallet</p>
+                    <span class="flex-shrink-0 w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
+                </div>
+                <p class="text-sm leading-relaxed opacity-95" style="color: #FFFFFF;">Chat with us!</p>
+            </div>
+        </div>
+
+        <!-- Arrow pointing to chat button -->
+        <div class="absolute -bottom-2 right-8 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent" style="border-top-color: #0500FF;"></div>
+    </div>
+
+    <!-- Close button -->
+    <button onclick="event.stopPropagation(); hideChatNotification();" class="absolute -top-2 -right-2 w-6 h-6 bg-gray-900 hover:bg-gray-800 rounded-full flex items-center justify-center text-white transition-all shadow-lg hover:scale-110">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+    </button>
+</div>
+
+<!-- Chat Button -->
+<button id="chatButton" class="fixed bottom-6 right-6 w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 z-50 hover:scale-105" style="background-color: #0500FF;" onmouseover="this.style.backgroundColor='#0400CC'" onmouseout="this.style.backgroundColor='#0500FF'">
+    <svg id="chatIcon" class="w-7 h-7 transition-transform" fill="currentColor" viewBox="0 0 24 24" style="color: #FFFFFF;">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"></path>
+        <circle cx="9" cy="10" r="1.5"></circle>
+        <circle cx="15" cy="10" r="1.5"></circle>
+    </svg>
+    <svg id="closeIcon" class="hidden w-7 h-7 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #FFFFFF;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+</button>
+
+<!-- Chat Window -->
+<div id="chatWindow" class="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 w-full h-full sm:w-[400px] sm:h-[650px] sm:rounded-3xl flex flex-col z-50 transform scale-0 sm:origin-bottom-right transition-transform duration-300" style="background-color: #ffffff; border: 1px solid #e2e8f0;">
+    <!-- Chat Header -->
+    <div class="px-6 py-5 sm:rounded-t-3xl flex items-center justify-between backdrop-blur-sm" style="background: linear-gradient(135deg, #0500FF 0%, #0500FFDD 100%);">
+        <div class="flex items-center space-x-3">
+            <div class="relative">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center bg-white p-1.5 ring-2 ring-white/20">
+                    <img src="https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg" alt="Trust Wallet Support" class="w-full h-full object-contain rounded-full">
+                </div>
+            </div>
+            <div>
+                <h3 class="font-bold text-base" style="color: #FFFFFF;">Trust Wallet</h3>
+                <p class="text-xs flex items-center gap-1.5 font-medium" style="color: #FFFFFFDD;">
+                    <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                    Online now
+                </p>
+            </div>
+        </div>
+        <button id="minimizeChat" class="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-white/10" style="color: #FFFFFF;">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chatMessages" class="flex-1 overflow-y-auto p-5 space-y-4 chat-scrollbar" style="background-color: #f7fafc;">
+        <!-- Start Chat Screen (shown when no session exists) -->
+        <div id="startChatScreen" class="hidden h-full flex items-center justify-center">
+            <div class="text-center px-6">
+                <div class="mb-6 flex justify-center">
+                    <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: #0500FF20;">
+                        <img src="https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg" alt="Trust Wallet" class="w-12 h-12 object-contain rounded-full">
+                    </div>
+                </div>
+                <h3 class="text-lg font-bold mb-2" style="color: #1a202c;">Welcome to Trust Wallet Support</h3>
+                <p class="text-sm mb-6" style="color: #718096;">Start a conversation with our support team</p>
+                <button id="startChatBtn" class="px-8 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 shadow-lg" style="background-color: #0500FF; color: #FFFFFF;" onmouseover="this.style.backgroundColor='#0400CC'" onmouseout="this.style.backgroundColor='#0500FF'">
+                    Start Chat
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Content (visible when session exists) -->
+        <div id="chatContent" class="space-y-4">
+            <!-- Welcome Message -->
+            <div class="flex flex-col items-start message-enter">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100">
+                        <img src="https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg" alt="Trust Wallet" class="w-full h-full object-contain rounded-full">
+                    </div>
+                    <p class="text-xs font-bold" style="color: #0500FF;">Trust Wallet</p>
+                </div>
+                <div class="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%] shadow-sm" style="background-color: #FFFFFF; border: 1px solid #e2e8f0;">
+                    <p class="text-sm leading-relaxed" style="color: #1f2937;">Hello! 👋 Welcome to Trust Wallet Support. How can we help you today?</p>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="flex flex-wrap gap-2">
+                                                            <button class="quick-reply-btn px-4 py-2 text-xs font-medium rounded-full transition-all shadow-sm hover:shadow-md" style="background-color: #ffffff; border: 1.5px solid #cbd5e0; color: #4a5568;" onmouseover="this.style.borderColor='#0500FF'; this.style.color='#0500FF';" onmouseout="this.style.borderColor='#cbd5e0'; this.style.color='#4a5568';">
+                            Wallet issue
+                        </button>
+                                            <button class="quick-reply-btn px-4 py-2 text-xs font-medium rounded-full transition-all shadow-sm hover:shadow-md" style="background-color: #ffffff; border: 1.5px solid #cbd5e0; color: #4a5568;" onmouseover="this.style.borderColor='#0500FF'; this.style.color='#0500FF';" onmouseout="this.style.borderColor='#cbd5e0'; this.style.color='#4a5568';">
+                            Transaction
+                        </button>
+                                            <button class="quick-reply-btn px-4 py-2 text-xs font-medium rounded-full transition-all shadow-sm hover:shadow-md" style="background-color: #ffffff; border: 1.5px solid #cbd5e0; color: #4a5568;" onmouseover="this.style.borderColor='#0500FF'; this.style.color='#0500FF';" onmouseout="this.style.borderColor='#cbd5e0'; this.style.color='#4a5568';">
+                            DeFi/dApps
+                        </button>
+                                            <button class="quick-reply-btn px-4 py-2 text-xs font-medium rounded-full transition-all shadow-sm hover:shadow-md" style="background-color: #ffffff; border: 1.5px solid #cbd5e0; color: #4a5568;" onmouseover="this.style.borderColor='#0500FF'; this.style.color='#0500FF';" onmouseout="this.style.borderColor='#cbd5e0'; this.style.color='#4a5568';">
+                            Other
+                        </button>
+                                                </div>
+        </div>
+    </div>
+
+    <!-- Chat Input (visible by default) -->
+    <div id="chatInputSection" class="px-4 py-4 sm:rounded-b-3xl border-t" style="background-color: #ffffff; border-color: #e2e8f0;">
+        <!-- Image Preview Area -->
+        <div id="imagePreviewArea" class="hidden mb-3 flex flex-wrap gap-2">
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
+            <button type="button" id="attachImageBtn" class="w-10 h-10 rounded-xl flex items-center justify-center transition-all relative flex-shrink-0 hover:scale-105" style="color: #0500FF; background-color: #edf2f7;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='#edf2f7'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                </svg>
+                <span id="imageCount" class="hidden absolute -top-1 -right-1 w-5 h-5 text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg" style="background-color: #0500FF; color: #FFFFFF;"></span>
+            </button>
+            <div class="flex-1 relative">
+                <textarea
+                    id="chatInput"
+                    placeholder="Type your message..."
+                    rows="1"
+                    class="w-full pl-4 pr-12 py-3 text-sm border-0 rounded-xl placeholder-gray-400 focus:outline-none resize-none leading-5"
+                    style="font-size: 16px; background-color: #edf2f7; color: #1a202c; max-height: 120px;"
+                ></textarea>
+                <button id="sendMessage" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105" style="color: #0500FF; background-color: transparent;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='transparent'">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <!-- Powered by text -->
+        <div class="text-center mt-3">
+            <p class="text-[10px] font-medium" style="color: #718096;">Powered by Helpry</p>
+        </div>
+    </div>
+</div>
+
+<!-- Lightbox -->
+<div id="imageLightbox" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/90 backdrop-blur-md transition-opacity duration-300 opacity-0" onclick="closeLightbox(event)">
+    <div class="relative max-w-[90vw] max-h-[90vh]">
+        <button onclick="closeLightbox(event, true)" class="absolute -top-4 -right-4 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all hover:scale-110">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <img id="lightboxImage" src="" alt="Full size image" class="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl">
+    </div>
+</div>
+
+<!-- Laravel Echo & Pusher for Real-time -->
+<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+<script type="application/json" id="reverb-config">{"key":"3jtv3vxs7ewioigkgiwj","host":"localhost","port":8080,"scheme":"http"}</script>
+
+<script>
+    // Chat Widget Configuration
+    const chatWidgetConfig = {
+        platformName: 'Trust Wallet',
+        primaryColor: '#0500FF',
+        primaryColorHover: '#0400CC',
+        darkTheme: false,
+        helpryCode: 'cmupnn-trustwallet-xostfj-helpry-eohlok-trustwallet-gkqtyx',
+        helpryId: 8484,
+        clientMessageBg: '#0500FF',
+        clientMessageText: '#FFFFFF',
+        adminMessageBg: '#FFFFFF',
+        adminMessageText: '#1f2937',
+        platformLabelColor: '#0500FF',
+        logoUrl: 'https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg'
+    };
+
+    // Lightbox functions
+    function openLightbox(imageUrl) {
+        const lightbox = document.getElementById('imageLightbox');
+        const lightboxImage = document.getElementById('lightboxImage');
+        lightboxImage.src = imageUrl;
+        lightbox.classList.remove('hidden');
+        lightbox.classList.add('flex');
+        setTimeout(() => lightbox.classList.remove('opacity-0'), 10);
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox(event, force = false) {
+        if (force || event.target.id === 'imageLightbox') {
+            const lightbox = document.getElementById('imageLightbox');
+            lightbox.classList.add('opacity-0');
+            setTimeout(() => {
+                lightbox.classList.remove('flex');
+                lightbox.classList.add('hidden');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+    }
+
+    // Close lightbox on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox(e, true);
+    });
+
+    // Live Chat Widget
+    const chatButton = document.getElementById('chatButton');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatIcon = document.getElementById('chatIcon');
+    const closeIcon = document.getElementById('closeIcon');
+    const minimizeChat = document.getElementById('minimizeChat');
+    const chatInput = document.getElementById('chatInput');
+    const sendMessageBtn = document.getElementById('sendMessage');
+    const attachImageBtn = document.getElementById('attachImageBtn');
+    const chatMessages = document.getElementById('chatMessages');
+
+    // Auto-resize textarea
+    const maxTextareaHeight = 120;
+
+    function autoResizeTextarea() {
+        chatInput.style.height = 'auto';
+        const scrollHeight = chatInput.scrollHeight;
+
+        if (scrollHeight <= maxTextareaHeight) {
+            chatInput.style.height = scrollHeight + 'px';
+            chatInput.style.overflowY = 'hidden';
+        } else {
+            chatInput.style.height = maxTextareaHeight + 'px';
+            chatInput.style.overflowY = 'auto';
+        }
+    }
+
+    chatInput.addEventListener('input', autoResizeTextarea);
+
+    // Typing indicator
+    let typingTimeout = null;
+    chatInput.addEventListener('input', () => {
+        if (!currentClientId) return;
+
+        if (!typingTimeout) {
+            fetch('/api/typing/broadcast', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({
+                    helpry_id: chatWidgetConfig.helpryId,
+                    client_id: currentClientId
+                })
+            }).catch(() => {});
+
+            typingTimeout = setTimeout(() => {
+                typingTimeout = null;
+            }, 2000);
+        }
+    });
+
+    let isChatOpen = false;
+    let scrollPosition = 0;
+    let notificationTimer = null;
+    const chatNotification = document.getElementById('chatNotification');
+
+    function showChatNotification() {
+        if (!isChatOpen && chatNotification) {
+            chatNotification.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+            chatNotification.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
+        }
+    }
+
+    function hideChatNotification() {
+        if (chatNotification) {
+            chatNotification.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+            chatNotification.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+        }
+    }
+
+    function startNotificationTimer() {
+        if (notificationTimer) {
+            clearTimeout(notificationTimer);
+        }
+        notificationTimer = setTimeout(() => {
+            showChatNotification();
+        }, 10000);
+    }
+
+    window.openChatWidget = function() {
+        if (!isChatOpen) {
+            toggleChat();
+        }
+    };
+    window.hideChatNotification = hideChatNotification;
+
+    function toggleChat() {
+        isChatOpen = !isChatOpen;
+
+        if (isChatOpen) {
+            scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            chatWindow.classList.remove('scale-0');
+            chatWindow.classList.add('scale-100');
+            chatIcon.classList.add('hidden');
+            closeIcon.classList.remove('hidden');
+            document.body.style.top = `-${scrollPosition}px`;
+            document.body.classList.add('chat-open');
+            hideChatNotification();
+            if (notificationTimer) {
+                clearTimeout(notificationTimer);
+                notificationTimer = null;
+            }
+        } else {
+            chatWindow.classList.remove('scale-100');
+            chatWindow.classList.add('scale-0');
+            chatIcon.classList.remove('hidden');
+            closeIcon.classList.add('hidden');
+            document.body.classList.remove('chat-open');
+            document.body.style.top = '';
+            window.scrollTo(0, scrollPosition);
+            startNotificationTimer();
+        }
+    }
+
+    function openChatWidget() {
+        if (!isChatOpen) {
+            toggleChat();
+        }
+    }
+
+    chatButton.addEventListener('click', () => toggleChat());
+    minimizeChat.addEventListener('click', () => toggleChat());
+    startNotificationTimer();
+
+    // Initialize Laravel Echo with Reverb
+    try {
+        var reverbConfig = JSON.parse(document.getElementById('reverb-config').textContent);
+        window.Echo = new Echo({
+            broadcaster: 'reverb',
+            key: reverbConfig.key,
+            wsHost: reverbConfig.host,
+            wsPort: reverbConfig.port,
+            wssPort: reverbConfig.port,
+            forceTLS: reverbConfig.scheme === 'https',
+            enabledTransports: ['ws', 'wss'],
+        });
+        console.log('Echo initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize Echo:', error);
+        window.Echo = null;
+    }
+
+    // Client Registration
+    const helpryCode = chatWidgetConfig.helpryCode;
+    const helpryId = chatWidgetConfig.helpryId;
+    let currentClientId = null;
+    let echoChannel = null;
+    const chatContent = document.getElementById('chatContent');
+    const chatInputSection = document.getElementById('chatInputSection');
+    const startChatScreen = document.getElementById('startChatScreen');
+    const startChatBtn = document.getElementById('startChatBtn');
+
+    // Stable localStorage key — uses helpryId so session survives code rotation
+    const sessionKey = `cache_lock_helpry_${helpryId}`;
+
+    function getSessionCacheLock() {
+        // Try the stable key first
+        let lock = localStorage.getItem(sessionKey);
+        if (lock) return lock;
+
+        // Fallback: old key format was cache_lock_${helpryCode} — migrate if found
+        const oldKey = `cache_lock_${helpryCode}`;
+        const oldLock = localStorage.getItem(oldKey);
+        if (oldLock) {
+            localStorage.setItem(sessionKey, oldLock);
+            localStorage.removeItem(oldKey);
+            return oldLock;
+        }
+
+        return null;
+    }
+
+    async function checkClientSession() {
+        const cacheLock = getSessionCacheLock();
+        console.log('Checking client session, cache_lock:', cacheLock ? 'EXISTS' : 'NOT FOUND');
+
+        if (cacheLock) {
+            try {
+                console.log('Verifying cache lock with server...');
+                const response = await fetch('/api/verify-cache-lock', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cache_lock: cacheLock
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('Server error verifying cache lock:', response.status);
+                    return false;
+                }
+
+                const data = await response.json();
+                console.log('Cache lock verification result:', data.valid ? 'VALID' : 'INVALID');
+
+                if (data.valid) {
+                    console.log('Session restored, client ID:', data.client.id);
+                    currentClientId = data.client.id;
+                    subscribeToClientChannel(data.client.id);
+                    fetchMessages(true);
+                    return true;
+                } else {
+                    // Cache lock not found in database - this is unusual
+                    // The client was deleted or the cache is corrupted
+                    // We should NOT remove it though, to maintain consistency
+                    console.log('Cache lock not found in database - client may have been deleted');
+                }
+            } catch (error) {
+                console.error('Network error verifying cache lock:', error);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // Check if client session exists on page load
+    async function initializeClient() {
+        console.log('=== CHECKING FOR EXISTING SESSION ===');
+        const hasSession = await checkClientSession();
+
+        if (hasSession) {
+            console.log('Existing session found, showing chat');
+            showChatContent();
+        } else {
+            console.log('No session found, showing Start Chat screen');
+            showStartChatScreen();
+        }
+    }
+
+    function showStartChatScreen() {
+        startChatScreen.classList.remove('hidden');
+        chatContent.classList.add('hidden');
+        chatInputSection.style.display = 'none';
+    }
+
+    function showChatContent() {
+        startChatScreen.classList.add('hidden');
+        chatContent.classList.remove('hidden');
+        chatInputSection.style.display = 'block';
+    }
+
+    // Handle Start Chat button click
+    startChatBtn.addEventListener('click', async function() {
+        console.log('Start Chat button clicked');
+        startChatBtn.disabled = true;
+        startChatBtn.textContent = 'Starting...';
+
+        try {
+            const registered = await registerClient();
+
+            if (registered) {
+                console.log('Client registered successfully, showing chat');
+                showChatContent();
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                console.error('Failed to register client');
+                const message = 'Failed to start chat. Please try again.' +
+                    (window.location.protocol === 'file:' ? '\nThis widget must be served from a web server because the Helpry API endpoints are required.' : '');
+                alert(message);
+                startChatBtn.disabled = false;
+                startChatBtn.textContent = 'Start Chat';
+            }
+        } catch (error) {
+            console.error('Unexpected startup error:', error);
+            alert('Failed to start chat. Please try again.\n' + (error?.message || 'Check the browser console for the API error.'));
+            startChatBtn.disabled = false;
+            startChatBtn.textContent = 'Start Chat';
+        }
+    });
+
+    async function getClientCountry() {
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            return data.country_name || 'Unknown';
+        } catch (error) {
+            console.error('Error fetching country:', error);
+            return 'Unknown';
+        }
+    }
+
+    async function registerClient() {
+        try {
+            if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+                throw new Error('This widget must be opened from a web server and the same domain as the Helpry API. Opening the HTML file directly will fail because /api/register-client is unavailable.');
+            }
+
+            console.log('Creating new client...');
+            const country = await getClientCountry();
+
+            const response = await fetch('/api/register-client', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    helpry_id: helpryId,
+                    country: country
+                })
+            });
+
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type') || '';
+                let details = '';
+
+                if (contentType.includes('application/json')) {
+                    const errorData = await response.json().catch(() => ({}));
+                    details = errorData.message || errorData.error || `HTTP ${response.status}`;
+                } else {
+                    const text = await response.text().catch(() => '');
+                    details = text || `HTTP ${response.status}`;
+                }
+
+                throw new Error(`API request failed (${response.status}): ${details}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('New client created:', data.client.ref_id);
+                localStorage.setItem(sessionKey, data.client.cache_lock);
+                currentClientId = data.client.id;
+
+                // Subscribe to Echo channel (with error handling)
+                subscribeToClientChannel(data.client.id);
+
+                // Start polling for messages
+                startMessagePolling();
+
+                return true;
+            } else {
+                console.error('Failed to register client:', data.error);
+                throw new Error(data.error || 'Server rejected client registration.');
+            }
+        } catch (error) {
+            console.error('Error registering client:', error);
+            // Clean up if registration failed
+            localStorage.removeItem(sessionKey);
+            currentClientId = null;
+            throw error;
+        }
+    }
+
+    // Initialize client session on page load
+    initializeClient();
+
+    function formatMessageTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }
+
+    function renderImagesHtml(imageUrls) {
+        if (!imageUrls || imageUrls.length === 0) return '';
+        return `
+            <div class="flex gap-2 overflow-x-auto pb-1 mb-2">
+                ${imageUrls.map(url => `
+                    <img src="${url}" alt="Attached image" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl cursor-pointer object-cover flex-shrink-0 hover:opacity-90 transition-all" onclick="openLightbox('${url}')">
+                `).join('')}
+            </div>
+        `;
+    }
+
+    let lastSenderType = null;
+
+    function renderMessage(msg, isConsecutive = null) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message-enter';
+        const imageUrls = msg.image_urls || (msg.image_url ? [msg.image_url] : []);
+        const showLabel = isConsecutive !== null ? !isConsecutive : (lastSenderType !== msg.sender_type);
+
+        if (msg.sender_type === 'client') {
+            messageDiv.classList.add('flex', 'justify-end');
+            messageDiv.innerHTML = `
+                <div class="max-w-[85%]">
+                    ${imageUrls.length > 0 ? `<div class="flex justify-end mb-2">${renderImagesHtml(imageUrls)}</div>` : ''}
+                    ${msg.message ? `
+                        <div class="rounded-2xl rounded-tr-md px-4 py-3 shadow-md" style="background-color: ${chatWidgetConfig.clientMessageBg};">
+                            <p class="text-sm break-words whitespace-pre-wrap leading-relaxed" style="color: ${chatWidgetConfig.clientMessageText};">${escapeHtml(msg.message)}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            messageDiv.classList.add('flex', 'flex-col', 'items-start');
+            messageDiv.innerHTML = `
+                ${showLabel ? `
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center ${chatWidgetConfig.darkTheme ? 'bg-white/10' : 'bg-gray-100'}">
+                            <img src="${chatWidgetConfig.logoUrl}" alt="${chatWidgetConfig.platformName}" class="w-full h-full object-contain rounded-full">
+                        </div>
+                        <p class="text-xs font-bold" style="color: ${chatWidgetConfig.platformLabelColor};">${chatWidgetConfig.platformName}</p>
+                    </div>
+                ` : ''}
+                ${imageUrls.length > 0 ? renderImagesHtml(imageUrls) : ''}
+                ${msg.message ? `
+                    <div class="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%] shadow-sm" style="background-color: ${chatWidgetConfig.adminMessageBg}; ${!chatWidgetConfig.darkTheme ? 'border: 1px solid #e2e8f0;' : ''}">
+                        <p class="text-sm break-words whitespace-pre-wrap leading-relaxed" style="color: ${chatWidgetConfig.adminMessageText};">${escapeHtml(msg.message)}</p>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        lastSenderType = msg.sender_type;
+        messageDiv.setAttribute('data-message-id', msg.id);
+        chatMessages.appendChild(messageDiv);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    let clientMessagesCache = [];
+
+    async function fetchMessages(forceRender = false) {
+        const cacheLock = getSessionCacheLock();
+        if (!cacheLock) return;
+
+        try {
+            const response = await fetch('/api/messages/fetch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cache_lock: cacheLock
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Server error fetching messages:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                const newMessages = data.messages;
+                const hasNewMessages = newMessages.length > clientMessagesCache.length ||
+                    (newMessages.length > 0 && clientMessagesCache.length > 0 &&
+                     newMessages[newMessages.length - 1].id !== clientMessagesCache[clientMessagesCache.length - 1]?.id);
+                const hasDeletedMessages = newMessages.length < clientMessagesCache.length;
+
+                let hasUpdatedMessages = false;
+                if (!hasNewMessages && !hasDeletedMessages && newMessages.length === clientMessagesCache.length) {
+                    for (let i = 0; i < newMessages.length; i++) {
+                        if (newMessages[i].message !== clientMessagesCache[i]?.message) {
+                            hasUpdatedMessages = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (forceRender || hasNewMessages || hasDeletedMessages || hasUpdatedMessages || clientMessagesCache.length === 0) {
+                    const wasAtBottom = chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 50;
+                    const welcomeMsg = chatContent.cloneNode(true);
+                    const currentContent = chatMessages.querySelector('#chatContent');
+                    if (currentContent) {
+                        chatMessages.removeChild(currentContent);
+                    }
+
+                    lastSenderType = null;
+                    clientMessagesCache = newMessages;
+
+                    // Clear all message divs but keep the welcome content
+                    const messageDivs = chatMessages.querySelectorAll('[data-message-id]');
+                    messageDivs.forEach(div => div.remove());
+
+                    newMessages.forEach(msg => renderMessage(msg));
+
+                    if (wasAtBottom || forceRender) {
+                        setTimeout(() => {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }, 0);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
+    // Image upload handling
+    const imageInput = document.getElementById('imageInput');
+    const imagePreviewArea = document.getElementById('imagePreviewArea');
+    const imageCountBadge = document.getElementById('imageCount');
+    let selectedImages = [];
+
+    attachImageBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    imageInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+
+        if (selectedImages.length + files.length > 3) {
+            alert('You can only attach up to 3 images');
+            imageInput.value = '';
+            return;
+        }
+
+        for (const file of files) {
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`Image "${file.name}" exceeds 10MB limit`);
+                imageInput.value = '';
+                return;
+            }
+        }
+
+        selectedImages = [...selectedImages, ...files];
+        updateImagePreview();
+        imageInput.value = '';
+    });
+
+    function updateImagePreview() {
+        if (selectedImages.length === 0) {
+            imagePreviewArea.classList.add('hidden');
+            imageCountBadge.classList.add('hidden');
+            return;
+        }
+
+        imagePreviewArea.classList.remove('hidden');
+        imageCountBadge.classList.remove('hidden');
+        imageCountBadge.textContent = selectedImages.length;
+
+        imagePreviewArea.innerHTML = selectedImages.map((file, index) => `
+            <div class="relative group">
+                <img src="${URL.createObjectURL(file)}" alt="Preview" class="w-16 h-16 object-cover rounded-xl border-2 shadow-md transition-all" style="border-color: #e2e8f0;">
+                <button type="button" onclick="removeImage(${index})" class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-all shadow-lg hover:scale-110">
+                    ✕
+                </button>
+            </div>
+        `).join('');
+    }
+
+    window.removeImage = function(index) {
+        selectedImages.splice(index, 1);
+        updateImagePreview();
+    };
+
+    async function sendChatMessage() {
+        const message = chatInput.value.trim();
+        if (message === '' && selectedImages.length === 0) return;
+
+        const cacheLock = getSessionCacheLock();
+
+        // Client should already be registered from page load, but check just in case
+        if (!cacheLock) {
+            alert('Session not initialized. Please refresh the page.');
+            return;
+        }
+
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+        const imagesToSend = [...selectedImages];
+        selectedImages = [];
+        updateImagePreview();
+
+        const tempImageUrls = imagesToSend.map(f => URL.createObjectURL(f));
+        const tempMsg = {
+            sender_type: 'client',
+            message: message,
+            image_urls: tempImageUrls,
+            created_at: new Date().toISOString()
+        };
+        renderMessage(tempMsg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        try {
+            const formData = new FormData();
+            formData.append('cache_lock', cacheLock);
+            if (message) {
+                formData.append('message', message);
+            }
+            imagesToSend.forEach((file, index) => {
+                formData.append('images[]', file);
+            });
+
+            const response = await fetch('/api/messages/send', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.status === 401) {
+                console.error('Session invalid (401)');
+                // Don't remove cache_lock - page refresh will re-initialize
+                alert('Session error. Please refresh the page.');
+                return;
+            }
+
+            if (!response.ok) {
+                console.error('Server error sending message:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                console.error('Failed to send message:', data.error);
+            } else {
+                fetchMessages();
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+
+    function subscribeToClientChannel(clientId) {
+        try {
+            if (!window.Echo) {
+                console.error('Echo is not initialized yet');
+                return;
+            }
+
+            if (echoChannel) {
+                window.Echo.leave('client.' + echoChannel);
+            }
+
+            echoChannel = clientId;
+            window.Echo.channel('client.' + clientId)
+                .listen('.message.sent', (data) => {
+                    console.log('New message from admin:', data);
+
+                    if (data.sender_type === 'admin') {
+                        renderMessage({
+                            id: data.id,
+                            sender_type: data.sender_type,
+                            message: data.message,
+                            image_urls: data.image_urls || [],
+                            created_at: data.created_at,
+                        });
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                        playNotificationSound();
+                    }
+                })
+                .listen('.message.updated', (data) => {
+                    console.log('Message updated by admin:', data);
+                    const msgEl = chatMessages.querySelector(`[data-message-id="${data.id}"]`);
+                    if (msgEl) {
+                        const msgTextEl = msgEl.querySelector('p');
+                        if (msgTextEl) {
+                            msgTextEl.textContent = data.message;
+                        }
+                    }
+                });
+
+            console.log('Subscribed to client channel:', clientId);
+        } catch (error) {
+            console.error('Error subscribing to client channel:', error);
+        }
+    }
+
+    function playNotificationSound() {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQQFFJHO5Jh0EgAwifDqmHAKACqH8e2QYgYAI4rx6YNMCgAcivTliUAOABaJ9uN9NhEAEIn23m8jFwALifjcZxUdAAiK+9xfDBkABYr93FkEFQAEi/7cUwAQAAOL/9xOAAwAA4sA3UkACQADiwHdRAAGAAOLAt1AAAAEAAOLAt0+AAIAAosD3TwAAAACiwPdOwD+/wKLBN06AP3/AosE3ToA/f8CiwTdOgD9/wKLBN06AP3/AosE3ToA/f8=');
+            audio.volume = 0.3;
+            audio.play().catch(() => {});
+        } catch (e) {}
+    }
+
+    let messagePollingInterval = null;
+
+    function startMessagePolling() {
+        if (messagePollingInterval) return;
+        messagePollingInterval = setInterval(fetchMessages, 3000);
+    }
+
+    function stopMessagePolling() {
+        if (messagePollingInterval) {
+            clearInterval(messagePollingInterval);
+            messagePollingInterval = null;
+        }
+    }
+
+    sendMessageBtn.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage();
+        }
+    });
+
+    const originalToggleChat = toggleChat;
+    toggleChat = function() {
+        originalToggleChat();
+        if (isChatOpen) {
+            // Only fetch messages and start polling if client is already registered
+            if (currentClientId) {
+                fetchMessages(true);
+                startMessagePolling();
+            }
+            // Otherwise, the Start Chat screen will be shown
+        } else {
+            stopMessagePolling();
+        }
+    };
+
+
+</script>
+</div></body>
+</html>

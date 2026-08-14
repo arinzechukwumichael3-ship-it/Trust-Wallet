@@ -56,6 +56,25 @@ Local state is stored in `data/state.json` (gitignored).
 - **Realtime:** the admin polls every 5s and the widget every 3s. There is no websocket push server; Laravel Echo is wired but unused server-side.
 - **Durability:** every client that registers (Start Chat) is saved permanently in the store. They are only removed when an admin deletes them from the admin console. For permanence on Vercel, link Upstash Redis (see deploy steps) — without it, Vercel's ephemeral `/tmp` can lose data on cold starts.
 
+## Email notifications (client ↔ support)
+
+The widget requires the customer to **connect their email before chatting** (Start Chat screen). Once connected, every message triggers a professional, branded email through Resend using the shared business inbox `trustsupport@yieldempire.org`:
+
+- **Client sends a message** → support is emailed the transcript at `trustsupport@yieldempire.org`. The email's `Reply-To` is set to the customer's address, so support can reply straight from their inbox and it threads back to the person.
+- **Support replies in the admin console** → the customer is emailed that reply from `trustsupport@yieldempire.org`.
+
+Email is best-effort: a delivery failure is logged and never blocks the in-app chat.
+
+### Required env vars (Vercel project → Settings → Environment Variables)
+
+| Var | Value |
+|-----|-------|
+| `RESEND_API_KEY` | API key from https://resend.com (starts with `re_`) |
+| `EMAIL_FROM` | `Trust Wallet Support <trustsupport@yieldempire.org>` |
+| `SUPPORT_EMAIL` | `trustsupport@yieldempire.org` |
+
+> **Resend deliverability:** the `yieldempire.org` (or `helpry.jp`) domain must be **verified in Resend** (add the DNS records Resend shows you) before real emails send. While unverified, Resend stays in test mode and only allows its own test address — the code still runs, the chat still works, and the failed send is logged so nothing is lost. `APP_URL` (your production domain, e.g. `https://helpry.jp`) makes the "Open the chat" button in emails point to the live site.
+
 ## Wrapping the admin as a mobile app (Median.co / APK)
 
 The admin console is a normal web page, so Median.co can wrap `/admin` into an Android APK. To get notified of new client messages on your phone:
@@ -70,12 +89,12 @@ Set `ADMIN_PASSWORD` in Vercel env vars so the wrapped app prompts for the passw
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/register-client` | Create a client session, returns `cache_lock` |
+| POST | `/api/register-client` | Create a client session (requires `email`), returns `cache_lock` |
 | POST | `/api/verify-cache-lock` | Validate a stored `cache_lock` (page reload) |
 | POST | `/api/messages/fetch` | List a client's messages |
-| POST | `/api/messages/send` | Client sends a message (text + up to 3 images) |
-| POST | `/api/admin/reply` | Admin replies to a client by `client_id` |
-| GET  | `/api/admin/clients` | Full client + message list for the admin UI |
+| POST | `/api/messages/send` | Client sends a message (text + up to 3 images); emails support |
+| POST | `/api/admin/reply` | Admin replies to a client by `client_id`; emails the client |
+| GET  | `/api/admin/clients` | Full client + message list (incl. connected `email`) for the admin UI |
 | GET  | `/api/admin/storage-status` | Whether data is durable (Redis) or temporary |
 | DELETE | `/api/admin/clients/:id` | Permanently delete a client + their messages |
 | POST | `/api/admin/login` | Admin password login (sets session cookie) |

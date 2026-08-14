@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const store = require('./lib/store');
+const email = require('./lib/email');
 
 // Minimal .env loader for local dev (Vercel injects env vars directly, so we
 // only read a local .env file when present and not already set).
@@ -204,6 +205,7 @@ app.get('/api/admin/clients', requireAdmin, async (req, res) => {
       ref_id: client.ref_id,
       helpry_id: client.helpry_id,
       country: client.country,
+      email: client.email || null,
       cache_lock: client.cache_lock,
       created_at: client.created_at,
       messages: listClientMessages(client)
@@ -243,9 +245,18 @@ app.post('/api/admin/reply', requireAdmin, upload.array('images[]', 5), async (r
   client.messages.push(reply);
   await store.saveState(state);
 
+  // Notify the client by email that support replied (best-effort, never blocks).
+  if (client.email) {
+    email.notifyClientOfReply(
+      { ref_id: client.ref_id, email: client.email },
+      { message: reply.message, image_urls: reply.image_urls, created_at: reply.created_at }
+    ).catch(e => console.error('[email] client reply notify error:', e && e.message));
+  }
+
   return res.json({
     success: true,
-    message: sanitizeMessage(reply)
+    message: sanitizeMessage(reply),
+    client_email: client.email || null
   });
 });
 
@@ -305,7 +316,7 @@ app.get('/api/admin/storage-status', requireAdmin, (req, res) => {
 
 // --- Client (widget) endpoints (public) -----------------------------------
 app.post('/api/register-client', async (req, res) => {
-  const { helpry_id, country } = req.body || {};
+  const { helpry_id, country, email } = req.body || {};
 
   if (!helpry_id) {
     return res.status(400).json({ success: false, error: 'Missing helpry_id' });
@@ -317,6 +328,7 @@ app.post('/api/register-client', async (req, res) => {
     ref_id: `TW-${String(state.nextClientId - 1).padStart(5, '0')}`,
     helpry_id: Number(helpry_id),
     country: country || 'Unknown',
+    email: typeof email === 'string' && email.trim() ? email.trim() : null,
     cache_lock: makeCacheLock(),
     created_at: new Date().toISOString(),
     messages: []
@@ -414,9 +426,16 @@ app.post('/api/messages/send', upload.array('images[]', 3), async (req, res) => 
   client.messages.push(newMessage);
   await store.saveState(state);
 
+  // Notify support by email that the client sent a message (best-effort, never blocks).
+  email.notifySupportOfClientMessage(
+    { ref_id: client.ref_id, helpry_id: client.helpry_id, email: client.email },
+    { message: newMessage.message, image_urls: newMessage.image_urls, created_at: newMessage.created_at }
+  ).catch(e => console.error('[email] support notify error:', e && e.message));
+
   return res.json({
     success: true,
-    message: sanitizeMessage(newMessage)
+    message: sanitizeMessage(newMessage),
+    email_notification: client.email ? 'client' : 'support'
   });
 });
 

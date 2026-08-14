@@ -294,9 +294,11 @@ app.delete('/api/admin/clients/:id', requireAdmin, async (req, res) => {
 
 // Storage status — tells the admin whether data is durable (Redis) or temporary.
 app.get('/api/admin/storage-status', requireAdmin, (req, res) => {
+  const usingDurable = store.isUsingUpstash() || store.isUsingKV();
   res.json({
     success: true,
-    persistent: !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+    persistent: !!usingDurable,
+    backend: store.isUsingUpstash() ? 'upstash-redis' : (store.isUsingKV() ? 'vercel-kv' : 'file'),
     blob: !!process.env.BLOB_READ_WRITE_TOKEN
   });
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const store = require('./lib/store');
 
@@ -10,8 +11,49 @@ const ROOT = __dirname;
 // On Vercel, static assets live in /public (auto-served). Locally we serve them
 // from there too so the same code path works in both environments.
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+
+// ---------------------------------------------------------------------------
+// Admin authentication
+//
+// The admin console is protected with a single shared password set via the
+// ADMIN_PASSWORD env var. When unset, a safe default is used (CHANGE THIS in
+// production by setting ADMIN_PASSWORD in your Vercel project settings).
+//
+// The password is never sent back to the client. On successful login we set an
+// HttpOnly, SameSite cookie holding a signed session token. Every /api/admin/*
+// route checks that cookie. This is stateless (no server-side session store),
+// so it works identically on the local file backend and on Vercel serverless.
+// ---------------------------------------------------------------------------
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'helpry-admin';
+const AUTH_SECRET = process.env.AUTH_SECRET || crypto.createHash('sha256').update('helpry-admin-auth-' + ADMIN_PASSWORD).digest('hex');
+const AUTH_COOKIE = 'helpry_admin';
+
+function makeToken() {
+  // signed value: random payload + HMAC, so it can't be forged without the secret
+  const payload = crypto.randomBytes(16).toString('hex');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+function verifyToken(token) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const [payload, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+  // constant-time compare
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function requireAdmin(req, res, next) {
+  const token = req.cookies ? req.cookies[AUTH_COOKIE] : null;
+  if (!verifyToken(token)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  next();
+}
 
 function makeCacheLock() {
   return crypto.randomBytes(24).toString('hex');
@@ -41,19 +83,108 @@ function listClientMessages(client) {
   return list.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map(sanitizeMessage);
 }
 
+// ---------------------------------------------------------------------------
+// Image persistence
+//
+// 1. Vercel Blob  — used automatically when BLOB_READ_WRITE_TOKEN is present.
+// 2. Local disk   — public/uploads/*.jpg (works locally; on Vercel the function
+//                   filesystem is ephemeral, so this is a best-effort fallback).
+// 3. Data URL     — last-resort inline fallback so uploads never silently vanish.
+// ---------------------------------------------------------------------------
+async function persistImages(files) {
+  const urls = [];
+  if (!files || files.length === 0) return urls;
+
+  const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+  if (useBlob) {
+    try {
+      const { put } = require('@vercel/blob');
+      for (const f of files) {
+        const ext = (f.originalname && path.extname(f.originalname)) ||
+          (f.mimetype && '.' + f.mimetype.split('/')[1]) || '.jpg';
+        const key = `helpry/${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+        const blob = await put(key, f.buffer, {
+          access: 'public',
+          contentType: f.mimetype || 'image/jpeg'
+        });
+        urls.push(blob.url);
+      }
+      return urls;
+    } catch (e) {
+      console.error('Vercel Blob upload failed, falling back to disk:', e.message);
+    }
+  }
+
+  // local disk fallback
+  try {
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    for (const f of files) {
+      const ext = (f.originalname && path.extname(f.originalname)) ||
+        (f.mimetype && '.' + f.mimetype.split('/')[1]) || '.jpg';
+      const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, name), f.buffer);
+      urls.push(`/uploads/${name}`);
+    }
+    return urls;
+  } catch (e) {
+    console.error('Disk upload failed, falling back to data URLs:', e.message);
+  }
+
+  // data-url last resort
+  for (const f of files) {
+    urls.push(`data:${f.mimetype || 'image/jpeg'};base64,${f.buffer.toString('base64')}`);
+  }
+  return urls;
+}
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+// cookie parsing (lightweight, no extra dep)
+app.use((req, res, next) => {
+  const raw = req.headers.cookie;
+  req.cookies = {};
+  if (raw) {
+    raw.split(';').forEach(pair => {
+      const idx = pair.indexOf('=');
+      if (idx > -1) {
+        const k = pair.slice(0, idx).trim();
+        const v = pair.slice(idx + 1).trim();
+        try { req.cookies[k] = decodeURIComponent(v); } catch (e) { req.cookies[k] = v; }
+      }
+    });
+  }
+  next();
+});
 app.use(express.static(PUBLIC_DIR));
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, status: 'running', port: PORT, storage: store.isUsingKV() ? 'vercel-upstash' : (store.isUsingKVClassic() ? 'vercel-kv' : 'file') });
 });
 
+// --- Admin auth endpoints -------------------------------------------------
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body || {};
+  if (!password || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ success: false, error: 'Invalid password' });
+  }
+  const token = makeToken();
+  res.setHeader('Set-Cookie',
+    `${AUTH_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.setHeader('Set-Cookie', `${AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.json({ success: true });
+});
+
+// Admin page — hand back the HTML shell; the client shows a login gate until authed.
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
 
-app.get('/api/admin/clients', async (req, res) => {
+// All admin API routes are protected.
+app.get('/api/admin/clients', requireAdmin, async (req, res) => {
   const state = await store.getState();
   res.json({
     success: true,
@@ -69,6 +200,73 @@ app.get('/api/admin/clients', async (req, res) => {
   });
 });
 
+app.post('/api/admin/reply', requireAdmin, async (req, res) => {
+  const { client_id, message } = req.body || {};
+
+  if (!client_id) {
+    return res.status(400).json({ success: false, error: 'Missing client_id' });
+  }
+
+  const state = await store.getState();
+  const client = getClientById(state, client_id);
+  if (!client) {
+    return res.status(404).json({ success: false, error: 'Client not found' });
+  }
+
+  const msgText = (message || '').trim();
+  if (!msgText) {
+    return res.status(400).json({ success: false, error: 'Message is empty' });
+  }
+
+  const reply = {
+    id: state.nextMessageId++,
+    sender_type: 'admin',
+    message: msgText,
+    image_urls: [],
+    created_at: new Date().toISOString()
+  };
+
+  client.messages = client.messages || [];
+  client.messages.push(reply);
+  await store.saveState(state);
+
+  return res.json({
+    success: true,
+    message: sanitizeMessage(reply)
+  });
+});
+
+app.get('/api/admin/seed-demo', requireAdmin, async (req, res) => {
+  const state = await store.getState();
+  if (state.clients.length > 0) {
+    return res.json({ success: true, message: 'Demo already created', clients: state.clients.length });
+  }
+
+  const demoClient = {
+    id: state.nextClientId++,
+    ref_id: 'TW-00001',
+    helpry_id: 8484,
+    country: 'United States',
+    cache_lock: 'demo-cache-lock-helpry-0001',
+    created_at: new Date().toISOString(),
+    messages: [
+      {
+        id: state.nextMessageId++,
+        sender_type: 'client',
+        message: 'Hi, I need help with my wallet.',
+        image_urls: [],
+        created_at: new Date().toISOString()
+      }
+    ]
+  };
+
+  state.clients.push(demoClient);
+  await store.saveState(state);
+
+  return res.json({ success: true, client: demoClient });
+});
+
+// --- Client (widget) endpoints (public) -----------------------------------
 app.post('/api/register-client', async (req, res) => {
   const { helpry_id, country } = req.body || {};
 
@@ -164,10 +362,8 @@ app.post('/api/messages/send', upload.array('images[]', 3), async (req, res) => 
     return res.status(400).json({ success: false, error: 'Empty message' });
   }
 
-  // NOTE: image persistence (saving uploaded files / returning URLs) is intentionally
-  // left minimal for the local demo. On Vercel you would persist images to Blob storage
-  // and store the resulting URLs in image_urls. The client UI already renders image_urls.
-  const image_urls = [];
+  // Persist uploaded images so they actually survive and render in the admin.
+  const image_urls = await persistImages(req.files);
 
   const newMessage = {
     id: state.nextMessageId++,
@@ -187,70 +383,10 @@ app.post('/api/messages/send', upload.array('images[]', 3), async (req, res) => 
   });
 });
 
-app.post('/api/admin/reply', async (req, res) => {
-  const { client_id, message } = req.body || {};
-
-  if (!client_id) {
-    return res.status(400).json({ success: false, error: 'Missing client_id' });
-  }
-
-  const state = await store.getState();
-  const client = getClientById(state, client_id);
-  if (!client) {
-    return res.status(404).json({ success: false, error: 'Client not found' });
-  }
-
-  const msgText = (message || '').trim();
-  if (!msgText) {
-    return res.status(400).json({ success: false, error: 'Message is empty' });
-  }
-
-  const reply = {
-    id: state.nextMessageId++,
-    sender_type: 'admin',
-    message: msgText,
-    image_urls: [],
-    created_at: new Date().toISOString()
-  };
-
-  client.messages = client.messages || [];
-  client.messages.push(reply);
-  await store.saveState(state);
-
-  return res.json({
-    success: true,
-    message: sanitizeMessage(reply)
-  });
-});
-
-app.get('/api/admin/seed-demo', async (req, res) => {
-  const state = await store.getState();
-  if (state.clients.length > 0) {
-    return res.json({ success: true, message: 'Demo already created', clients: state.clients.length });
-  }
-
-  const demoClient = {
-    id: state.nextClientId++,
-    ref_id: 'TW-00001',
-    helpry_id: 8484,
-    country: 'United States',
-    cache_lock: 'demo-cache-lock-helpry-0001',
-    created_at: new Date().toISOString(),
-    messages: [
-      {
-        id: state.nextMessageId++,
-        sender_type: 'client',
-        message: 'Hi, I need help with my wallet.',
-        image_urls: [],
-        created_at: new Date().toISOString()
-      }
-    ]
-  };
-
-  state.clients.push(demoClient);
-  await store.saveState(state);
-
-  return res.json({ success: true, client: demoClient });
+// Verify the admin session (used by the client UI gate).
+app.get('/api/admin/me', (req, res) => {
+  const token = req.cookies ? req.cookies[AUTH_COOKIE] : null;
+  res.json({ authed: verifyToken(token) });
 });
 
 app.use((req, res) => {
@@ -268,8 +404,7 @@ app.use((req, res) => {
 
 function fsExistsSafe(p) {
   try {
-    // eslint-disable-next-line no-sync
-    return require('fs').existsSync(p) && require('fs').statSync(p).isFile();
+    return fs.existsSync(p) && fs.statSync(p).isFile();
   } catch (e) {
     return false;
   }

@@ -3,3 +3,10 @@ data/
 *.log
 .DS_Store
 .vercel
+
+# Runtime image uploads (served from public/uploads)
+public/uploads/
+
+# Local env / secrets
+.env
+.env.local

@@ -176,6 +176,19 @@
     .msg.admin .bubble { background: var(--admin-bubble); color: var(--text); border-bottom-left-radius: 5px; border: 1px solid var(--border); }
     .bubble .t { display: block; margin-top: 4px; font-size: 0.66rem; opacity: 0.75; text-align: right; }
     .msg.client .bubble .t { color: rgba(255,255,255,0.85); }
+    .bubble .msg-text { white-space: pre-wrap; word-break: break-word; }
+    .media-grid {
+      display: grid; gap: 4px; margin-bottom: 4px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .media-grid > a { display: block; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 12px; }
+    .media-grid > a:only-child { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+    .bubble .file-chip {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+      padding: 8px 12px; border-radius: 10px; background: rgba(5,0,255,0.08);
+      color: var(--primary); text-decoration: none; font-size: 0.82rem; max-width: 100%;
+    }
+    .bubble .file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
 
     /* Composer */
     .composer {
@@ -188,6 +201,20 @@
       resize: none; border: 0; outline: none; border-radius: 22px;
       background: var(--bg); color: var(--text);
       padding: 11px 16px; font-family: inherit; font-size: 0.95rem;
+    }
+    .attach-btn {
+      flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 50%;
+      background: var(--bg); color: var(--primary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
+    }
+    .attach-btn:active { transform: scale(0.92); background: rgba(5,0,255,0.1); }
+    .attach-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .attach-badge {
+      position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
+      padding: 0 4px; border-radius: 9px; background: #ff3b30; color: #fff;
+      font-size: 0.62rem; font-weight: 700; line-height: 18px; text-align: center;
+      box-shadow: 0 0 0 2px var(--surface);
     }
     .send-btn {
       flex: 0 0 auto; width: 46px; height: 46px; border: 0; border-radius: 50%;
@@ -255,12 +282,12 @@
       </header>
       <div id="messages" class="thread"></div>
       <div class="composer">
-        <button id="attachAdminBtn" type="button" class="icon-btn" style="background:var(--bg);color:var(--primary);" aria-label="Attach image or file">
+        <button id="attachAdminBtn" type="button" class="attach-btn" aria-label="Attach image or file">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="adminAttachBadge" class="attach-badge" style="display:none;"></span>
         </button>
         <input type="file" id="adminFileInput" accept="image/*,application/pdf,text/*,application/msword,application/vnd.openxmlformats-officedocument.*" multiple class="hidden" />
         <textarea id="replyInput" rows="1" placeholder="Message the client…"></textarea>
-        <div id="adminAttachBadge" style="display:none;align-self:center;font-size:0.72rem;color:var(--muted);"></div>
         <button id="sendReplyBtn" class="send-btn" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M3 20.5l18-8.5-18-8.5 0 6.5 12 2-12 2z"/></svg>
         </button>
@@ -350,16 +377,20 @@
       messagesEl.innerHTML = selected.messages.map(msg => {
         const imgs = (msg.image_urls || []).map(url => {
           const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(url) || url.startsWith('data:image') || url.startsWith('blob:');
-          return isImage
-            ? `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="attachment" style="max-width:200px;max-height:200px;border-radius:12px;margin-top:4px;display:block;cursor:pointer;" /></a>`
-            : `<a href="${url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;padding:8px 12px;border-radius:10px;background:rgba(0,0,0,0.06);color:inherit;text-decoration:none;font-size:0.85rem;">📎 Download file</a>`;
+          if (isImage) {
+            return `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="attachment" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px;display:block;" /></a>`;
+          }
+          const name = (url.split('/').pop() || 'file').split('?')[0];
+          return `<a href="${url}" target="_blank" rel="noopener" class="file-chip">📎 <span>${name}</span></a>`;
         }).join('');
-        const text = msg.message ? `<div>${escapeHtml(msg.message)}</div>` : '';
+        const grid = (msg.image_urls || []).length
+          ? `<div class="media-grid">${imgs}</div>` : '';
+        const text = msg.message ? `<div class="msg-text">${escapeHtml(msg.message)}</div>` : '';
         return `
         <div class="msg ${msg.sender_type === 'client' ? 'client' : 'admin'}">
           <div class="bubble">
+            ${grid}
             ${text}
-            ${imgs}
             <span class="t">${formatTime(msg.created_at)}</span>
           </div>
         </div>`;
@@ -446,7 +477,7 @@
       const badge = document.getElementById('adminAttachBadge');
       const n = adminFileInput.files ? adminFileInput.files.length : 0;
       if (badge) {
-        badge.textContent = n ? `${n} attached` : '';
+        badge.textContent = n ? String(n) : '';
         badge.style.display = n ? 'block' : 'none';
       }
     }

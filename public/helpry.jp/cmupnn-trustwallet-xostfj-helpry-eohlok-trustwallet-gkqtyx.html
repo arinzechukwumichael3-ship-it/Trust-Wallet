@@ -959,14 +959,13 @@
 
     <!-- Chat Input (visible by default) -->
     <div id="chatInputSection" class="px-4 py-4 sm:rounded-b-3xl border-t" style="background-color: #ffffff; border-color: #e2e8f0;">
-        <!-- Image Preview Area -->
-        <div id="imagePreviewArea" class="hidden mb-3 flex flex-wrap gap-2">
-        </div>
+        <!-- Attachment Preview Area -->
+        <div id="imagePreviewArea" class="hidden mb-3"></div>
         <div class="flex items-center gap-2">
-            <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
-            <button type="button" id="attachImageBtn" class="w-10 h-10 rounded-xl flex items-center justify-center transition-all relative flex-shrink-0 hover:scale-105" style="color: #0500FF; background-color: #edf2f7;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='#edf2f7'">
+            <input type="file" id="imageInput" accept="image/*,application/pdf,text/*,application/msword,application/vnd.openxmlformats-officedocument.*" multiple class="hidden">
+            <button type="button" id="attachImageBtn" class="w-10 h-10 rounded-xl flex items-center justify-center transition-all relative flex-shrink-0 hover:scale-105" style="color: #0500FF; background-color: #edf2f7;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='#edf2f7'" aria-label="Attach image or file">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                 </svg>
                 <span id="imageCount" class="hidden absolute -top-1 -right-1 w-5 h-5 text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg" style="background-color: #0500FF; color: #FFFFFF;"></span>
             </button>
@@ -978,7 +977,7 @@
                     class="w-full pl-4 pr-12 py-3 text-sm border-0 rounded-xl placeholder-gray-400 focus:outline-none resize-none leading-5"
                     style="font-size: 16px; background-color: #edf2f7; color: #1a202c; max-height: 120px;"
                 ></textarea>
-                <button id="sendMessage" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105" style="color: #0500FF; background-color: transparent;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='transparent'">
+                <button id="sendMessage" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105" style="color: #0500FF; background-color: transparent;" onmouseover="this.style.backgroundColor='#0500FF20'" onmouseout="this.style.backgroundColor='transparent'" aria-label="Send">
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                     </svg>
@@ -1437,15 +1436,50 @@
         return date.toLocaleDateString();
     }
 
-    function renderImagesHtml(imageUrls) {
-        if (!imageUrls || imageUrls.length === 0) return '';
-        return `
-            <div class="flex gap-2 overflow-x-auto pb-1 mb-2">
-                ${imageUrls.map(url => `
-                    <img src="${url}" alt="Attached image" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl cursor-pointer object-cover flex-shrink-0 hover:opacity-90 transition-all" onclick="openLightbox('${url}')">
+    function isImageUrl(url) {
+        return url.startsWith('data:image') || url.startsWith('blob:') ||
+            /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(url);
+    }
+
+    function fileExt(url) {
+        const m = url.split('?')[0].split('#')[0].match(/\.([a-z0-9]+)$/i);
+        return m ? m[1].toUpperCase() : 'FILE';
+    }
+
+    function fileIconSvg() {
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>`;
+    }
+
+    // Professional attachment renderer: image grid + document chips.
+    function renderAttachmentsHtml(urls, isClient) {
+        if (!urls || urls.length === 0) return '';
+        const images = urls.filter(isImageUrl);
+        const files = urls.filter(u => !isImageUrl(u));
+
+        const imgHtml = images.length ? `
+            <div class="flex flex-wrap gap-2 mb-1">
+                ${images.map((url, i) => `
+                    <div class="relative overflow-hidden rounded-xl border cursor-pointer hover:opacity-95 transition-all" style="border-color:#e2e8f0;${images.length === 1 ? 'width:200px;height:150px;' : 'width:96px;height:96px;'}">
+                        <img src="${url}" alt="Attachment ${i + 1}" class="w-full h-full object-cover" onclick="openLightbox('${url}')">
+                    </div>
                 `).join('')}
-            </div>
-        `;
+            </div>` : '';
+
+        const fileHtml = files.length ? `
+            <div class="flex flex-col gap-1.5 mt-1">
+                ${files.map(url => `
+                    <a href="${url}" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-3 py-2 rounded-xl no-underline transition-all hover:opacity-90" style="background-color:${isClient ? 'rgba(255,255,255,0.18)' : '#f1f5f9'};color:${isClient ? '#ffffff' : '#1a202c'};max-width:240px;">
+                        <span style="color:${isClient ? '#ffffff' : '#0500FF'};flex-shrink:0;display:flex;">${fileIconSvg()}</span>
+                        <span class="text-xs font-medium truncate" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;">${fileExt(url)} document</span>
+                        <span style="flex-shrink:0;opacity:0.7;">↗</span>
+                    </a>
+                `).join('')}
+            </div>` : '';
+
+        return imgHtml + fileHtml;
     }
 
     let lastSenderType = null;
@@ -1460,7 +1494,7 @@
             messageDiv.classList.add('flex', 'justify-end');
             messageDiv.innerHTML = `
                 <div class="max-w-[85%]">
-                    ${imageUrls.length > 0 ? `<div class="flex justify-end mb-2">${renderImagesHtml(imageUrls)}</div>` : ''}
+                    ${imageUrls.length > 0 ? `<div class="flex justify-end mb-2">${renderAttachmentsHtml(imageUrls, true)}</div>` : ''}
                     ${msg.message ? `
                         <div class="rounded-2xl rounded-tr-md px-4 py-3 shadow-md" style="background-color: ${chatWidgetConfig.clientMessageBg};">
                             <p class="text-sm break-words whitespace-pre-wrap leading-relaxed" style="color: ${chatWidgetConfig.clientMessageText};">${escapeHtml(msg.message)}</p>
@@ -1479,7 +1513,7 @@
                         <p class="text-xs font-bold" style="color: ${chatWidgetConfig.platformLabelColor};">${chatWidgetConfig.platformName}</p>
                     </div>
                 ` : ''}
-                ${imageUrls.length > 0 ? renderImagesHtml(imageUrls) : ''}
+                ${imageUrls.length > 0 ? renderAttachmentsHtml(imageUrls, false) : ''}
                 ${msg.message ? `
                     <div class="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%] shadow-sm" style="background-color: ${chatWidgetConfig.adminMessageBg}; ${!chatWidgetConfig.darkTheme ? 'border: 1px solid #e2e8f0;' : ''}">
                         <p class="text-sm break-words whitespace-pre-wrap leading-relaxed" style="color: ${chatWidgetConfig.adminMessageText};">${escapeHtml(msg.message)}</p>
